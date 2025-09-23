@@ -149,18 +149,18 @@ class Descuento(models.Model):
         db_table = 'descuento'
 
 
-class DetallePedido(models.Model):
-    pk = models.CompositePrimaryKey('pedido_id', 'producto_id', 'sabor_id')
-    pedido = models.ForeignKey('Pedido', models.DO_NOTHING)
-    producto = models.ForeignKey('ProductoSabor', models.DO_NOTHING)
-    sabor = models.ForeignKey('ProductoSabor', models.DO_NOTHING, to_field='sabor_id', related_name='detallepedido_sabor_set')
-    cantidad = models.IntegerField()
-    precio_unitario = models.DecimalField(max_digits=12, decimal_places=2)
-    sub_total = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+#class DetallePedido(models.Model):
+#    pk = models.CompositePrimaryKey('pedido_id', 'producto_id', 'sabor_id')
+ #   pedido = models.ForeignKey('Pedido', models.DO_NOTHING)
+  #  producto = models.ForeignKey('ProductoSabor', models.DO_NOTHING)
+   # sabor = models.ForeignKey('ProductoSabor', models.DO_NOTHING, to_field='sabor_id', related_name='detallepedido_sabor_set')
+    #cantidad = models.IntegerField()
+    #precio_unitario = models.DecimalField(max_digits=12, decimal_places=2)
+    #sub_total = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
 
-    class Meta:
-        managed = False
-        db_table = 'detalle_pedido'
+    #class Meta:
+     #   managed = False
+      #  db_table = 'detalle_pedido'
 
 
 class DjangoAdminLog(models.Model):
