@@ -3,9 +3,24 @@ from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
 from django.http import HttpResponse
 from .forms import RegistroForm, LoginForm
-
 from accounts.models import User
 from accounts.models_db import Usuario, Cliente
+from django.contrib.auth.decorators import login_required
+
+@login_required
+def perfil_view(request):
+    user = request.user
+
+    try:
+        usuario_base = Usuario.objects.get(email=user.email)
+        cliente = Cliente.objects.get(usuario=usuario_base)
+    except (Usuario.DoesNotExist, Cliente.DoesNotExist):
+        return HttpResponse("<h2>No se encontró el perfil del cliente.</h2>")
+
+    return render(request, 'accounts/perfil.html', {
+        'cliente': cliente,
+        'usuario': usuario_base
+    })
 
 def register_view(request):
     if request.method == 'POST':
