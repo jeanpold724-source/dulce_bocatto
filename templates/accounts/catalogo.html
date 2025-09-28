@@ -1,0 +1,14 @@
+<h2>Catálogo de Galletas 🍪</h2>
+<div class="row">
+  {% for sabor in sabores %}
+    <div class="col-md-4">
+      <div class="card mb-3">
+        <div class="card-body">
+          <h5 class="card-title">{{ sabor.nombre }}</h5>
+          <p class="card-text">¡Delicioso sabor disponible!</p>
+          <a href="#" class="btn btn-success">Pedir</a>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>

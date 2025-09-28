@@ -1,0 +1,33 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Entornos virtuales ---
+env/
+venv/
+.venv/
+
+# --- Django / Base de datos local ---
+db.sqlite3
+*.sqlite3
+
+# Archivos generados por collectstatic (si lo usas)
+staticfiles/
+
+# --- Medios subidos por usuarios (si no quieres versionarlos) ---
+media/
+
+# --- Config local / IDE ---
+.vscode/
+.idea/
+.DS_Store
+
+# --- Logs y temporales ---
+*.log
+*.tmp
+
+# --- Variables de entorno / secretos ---
+.env
+.env.*
+*.env

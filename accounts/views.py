@@ -6,6 +6,9 @@ from .forms import RegistroForm, LoginForm
 from accounts.models import User
 from accounts.models_db import Usuario, Cliente
 from django.contrib.auth.decorators import login_required
+from accounts.models_db import Sabor
+from django.shortcuts import render
+
 
 @login_required
 def perfil_view(request):
@@ -57,3 +60,7 @@ class CustomLoginView(LoginView):
 
 def home_view(request):
     return HttpResponse("<h1>Bienvenido a Dulce Bocatto</h1><p>Estás en la página principal.</p>")
+
+def catalogo_view(request):
+    sabores = Sabor.objects.filter(activo=True)
+    return render(request, 'accounts/catalogo.html', {'sabores': sabores})
