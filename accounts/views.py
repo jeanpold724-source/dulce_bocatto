@@ -1,4 +1,3 @@
-from django.shortcuts import render, redirect
 from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
 from django.http import HttpResponse
@@ -7,23 +6,35 @@ from accounts.models import User
 from accounts.models_db import Usuario, Cliente
 from django.contrib.auth.decorators import login_required
 from accounts.models_db import Sabor
-from django.shortcuts import render
+from django.shortcuts import render, redirect, get_object_or_404
+from accounts.models_db import Sabor, Pedido, Cliente
+from django.utils import timezone
+from decimal import Decimal
+from django.utils.timezone import make_aware
+from datetime import datetime
+
+from accounts.models_db import Cliente, Pedido
+
+
+
+
 
 
 @login_required
 def perfil_view(request):
-    user = request.user
-
     try:
-        usuario_base = Usuario.objects.get(email=user.email)
-        cliente = Cliente.objects.get(usuario=usuario_base)
-    except (Usuario.DoesNotExist, Cliente.DoesNotExist):
-        return HttpResponse("<h2>No se encontró el perfil del cliente.</h2>")
+        cliente = Cliente.objects.get(nombre=request.user.first_name)
+    except Cliente.DoesNotExist:
+        return render(request, 'accounts/error.html', {'mensaje': 'Cliente no encontrado'})
+
+    pedidos = Pedido.objects.filter(cliente=cliente).order_by('-created_at')
 
     return render(request, 'accounts/perfil.html', {
         'cliente': cliente,
-        'usuario': usuario_base
+        'pedidos': pedidos,
+        'confirmado': request.GET.get('confirmado') == '1'
     })
+
 
 def register_view(request):
     if request.method == 'POST':
@@ -64,3 +75,42 @@ def home_view(request):
 def catalogo_view(request):
     sabores = Sabor.objects.filter(activo=True)
     return render(request, 'accounts/catalogo.html', {'sabores': sabores})
+
+@login_required
+def crear_pedido(request, sabor_id):
+    sabor = get_object_or_404(Sabor, id=sabor_id)
+
+    try:
+        cliente = Cliente.objects.get(nombre=request.user.first_name)
+    except Cliente.DoesNotExist:
+        return render(request, 'accounts/error.html', {'mensaje': 'Cliente no encontrado'})
+
+    if request.method == 'POST':
+        metodo = request.POST.get('metodo_envio')
+        direccion = request.POST.get('direccion_entrega')
+        fecha_str = request.POST.get('fecha_entrega_programada')
+        observaciones = request.POST.get('observaciones')
+
+        # Convertir fecha con zona horaria
+        fecha = make_aware(datetime.strptime(fecha_str, '%Y-%m-%dT%H:%M'))
+
+        precio_base = Decimal('10.00')
+        costo_envio = Decimal('5.00') if metodo == 'delivery' else Decimal('0.00')
+        total = precio_base + costo_envio
+
+        Pedido.objects.create(
+            cliente=cliente,
+            estado='PENDIENTE',
+            metodo_envio=metodo,
+            costo_envio=costo_envio,
+            direccion_entrega=direccion,
+            total=total,
+            observaciones=observaciones,
+            created_at=timezone.now(),
+            fecha_entrega_programada=fecha
+        )
+        return redirect('perfil')
+
+    return render(request, 'accounts/crear_pedido.html', {'sabor': sabor})
+
+

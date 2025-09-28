@@ -6,7 +6,7 @@
         <div class="card-body">
           <h5 class="card-title">{{ sabor.nombre }}</h5>
           <p class="card-text">¡Delicioso sabor disponible!</p>
-          <a href="#" class="btn btn-success">Pedir</a>
+          <a href="{% url 'crear_pedido' sabor.id %}" class="btn btn-success">Pedir</a>
         </div>
       </div>
     </div>

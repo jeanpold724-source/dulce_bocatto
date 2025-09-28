@@ -1,8 +1,12 @@
 from django.urls import path
-from .views import register_view, CustomLoginView, home_view
-from .views import perfil_view
-from .views import register_view, CustomLoginView, home_view, perfil_view, catalogo_view
-
+from .views import (
+    register_view,
+    CustomLoginView,
+    home_view,
+    perfil_view,
+    catalogo_view,
+    crear_pedido,
+)
 
 urlpatterns = [
     path('', home_view, name='home'),
@@ -10,5 +14,5 @@ urlpatterns = [
     path('login/', CustomLoginView.as_view(), name='login'),
     path('perfil/', perfil_view, name='perfil'),
     path('catalogo/', catalogo_view, name='catalogo'),
-
+    path('pedido/<int:sabor_id>/', crear_pedido, name='crear_pedido'),
 ]

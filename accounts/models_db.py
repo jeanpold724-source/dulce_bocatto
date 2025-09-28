@@ -8,6 +8,7 @@
 from django.db import models
 
 
+
 class AccountsUser(models.Model):
     id = models.BigAutoField(primary_key=True)
     password = models.CharField(max_length=128)
@@ -272,7 +273,7 @@ class Pago(models.Model):
 class Pedido(models.Model):
     cliente = models.ForeignKey(Cliente, models.DO_NOTHING)
     estado = models.CharField(max_length=10, blank=True, null=True)
-    metodo_envio = models.CharField(max_length=8)
+    metodo_envio = models.CharField(max_length=20)
     costo_envio = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
     direccion_entrega = models.CharField(max_length=200, blank=True, null=True)
     total = models.DecimalField(max_digits=12, decimal_places=2)

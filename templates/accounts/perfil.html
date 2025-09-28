@@ -1,6 +1,26 @@
-<h2>Bienvenido, {{ cliente.nombre }}</h2>
+<h2>Bienvenido,</h2>
 <ul>
   <li><strong>Teléfono:</strong> {{ cliente.telefono }}</li>
   <li><strong>Dirección:</strong> {{ cliente.direccion }}</li>
-  <li><strong>Email:</strong> {{ usuario.email }}</li>
+  <li><strong>Email:</strong> {{ request.user.email }}</li>
+</ul>
+
+{% if confirmado %}
+  <div class="alert alert-success">
+    ¡Tu pedido fue confirmado exitosamente!
+  </div>
+{% endif %}
+
+<h3>Mis pedidos</h3>
+<ul>
+  {% for pedido in pedidos %}
+    <li>
+      <strong>{{ pedido.created_at|date:"d/m/Y H:i" }}</strong> – 
+      {{ pedido.metodo_envio }} a {{ pedido.direccion_entrega }} – 
+      Entrega: {{ pedido.fecha_entrega_programada|date:"d/m/Y H:i" }} – 
+      Estado: {{ pedido.estado }}
+    </li>
+  {% empty %}
+    <li>No tienes pedidos registrados.</li>
+  {% endfor %}
 </ul>
