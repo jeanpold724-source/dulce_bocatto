@@ -111,7 +111,7 @@ def crear_pedido(request, sabor_id):
         costo_envio = Decimal('5.00') if metodo == 'delivery' else Decimal('0.00')
         total = precio_base + costo_envio
 
-        Pedido.objects.create(
+        pedido = Pedido.objects.create(
             cliente=cliente,
             estado='PENDIENTE',
             metodo_envio=metodo,
@@ -122,9 +122,20 @@ def crear_pedido(request, sabor_id):
             created_at=timezone.now(),
             fecha_entrega_programada=fecha
         )
+        Bitacora.objects.create(
+            usuario=cliente.usuario,
+            entidad='Pedido',
+            entidad_id=pedido.id,
+            accion='Crear Pedido',
+            ip=request.META.get('REMOTE_ADDR'),
+            fecha=timezone.now()
+        )
+
         return redirect('perfil')
 
     return render(request, 'accounts/crear_pedido.html', {'sabor': sabor})
+
+
 
 
 
