@@ -22,4 +22,5 @@ urlpatterns = [
     path('cancelar-pedido/<int:pedido_id>/', cancelar_pedido, name='cancelar_pedido'),
     path('bitacora/', bitacora_view, name='bitacora'),
     path('confirmar-pedido/<int:pedido_id>/', confirmar_pedido, name='confirmar_pedido'),
+    
 ]

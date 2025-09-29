@@ -5,6 +5,13 @@
   <li><strong>Email:</strong> {{ request.user.email }}</li>
 </ul>
 
+<form method="POST" action="{% url 'logout' %}">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-outline-danger btn-sm">
+    <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+  </button>
+</form>
+
 {% if confirmado %}
   <div class="alert alert-success">
     ¡Tu pedido fue confirmado exitosamente!
