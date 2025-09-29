@@ -33,6 +33,8 @@ from django.utils import timezone
 
 
 
+
+
 @login_required
 def perfil_view(request):
     try:
@@ -168,3 +170,26 @@ def cancelar_pedido(request, pedido_id):
 def bitacora_view(request):
     logs = Bitacora.objects.all().order_by('-fecha')
     return render(request, 'accounts/bitacora.html', {'logs': logs})
+
+
+@require_POST
+@login_required
+def confirmar_pedido(request, pedido_id):
+    try:
+        pedido = Pedido.objects.get(id=pedido_id)
+        if pedido.estado == 'PENDIENTE':
+            pedido.estado = 'CONFIRMADO'
+            pedido.save()
+
+            cliente = Cliente.objects.get(nombre=request.user.first_name)
+            Bitacora.objects.create(
+                usuario=cliente.usuario,
+                entidad='Pedido',
+                entidad_id=pedido.id,
+                accion='Confirmar Pedido',
+                ip=request.META.get('REMOTE_ADDR'),
+                fecha=timezone.now()
+            )
+    except Pedido.DoesNotExist:
+        pass
+    return redirect('perfil')

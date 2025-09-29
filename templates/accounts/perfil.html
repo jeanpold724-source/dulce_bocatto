@@ -26,6 +26,13 @@
           <button type="submit" class="btn btn-danger btn-sm">Cancelar</button>
         </form>
       {% endif %}
+      {% if pedido.estado == 'PENDIENTE' %}
+  <form method="POST" action="{% url 'confirmar_pedido' pedido.id %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-success">Confirmar</button>
+  </form>
+{% endif %}
+
     </li>
   {% empty %}
     <li>No tienes pedidos registrados.</li>

@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import cancelar_pedido
 from .views import bitacora_view
+from .views import confirmar_pedido
 
 from .views import (
     register_view,
@@ -20,4 +21,5 @@ urlpatterns = [
     path('pedido/<int:sabor_id>/', crear_pedido, name='crear_pedido'),
     path('cancelar-pedido/<int:pedido_id>/', cancelar_pedido, name='cancelar_pedido'),
     path('bitacora/', bitacora_view, name='bitacora'),
+    path('confirmar-pedido/<int:pedido_id>/', confirmar_pedido, name='confirmar_pedido'),
 ]
