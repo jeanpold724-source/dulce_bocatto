@@ -21,6 +21,10 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
 from accounts.models_db import Pedido
 
+from accounts.models_db import Bitacora
+from django.utils import timezone
+
+
 
 
 
@@ -132,8 +136,24 @@ def cancelar_pedido(request, pedido_id):
         if pedido.estado == 'PENDIENTE':
             pedido.estado = 'CANCELADO'
             pedido.save()
+            cliente = Cliente.objects.get(nombre=request.user.first_name)
+            usuario = cliente.usuario
+            Bitacora.objects.create(
+                usuario=usuario,
+                entidad='Pedido',
+                entidad_id=pedido.id,
+                accion='Cancelar',
+                ip=request.META.get('REMOTE_ADDR'),
+                fecha=timezone.now()
+           )
+
     except Pedido.DoesNotExist:
         pass
     return redirect('perfil')
 
 
+
+@login_required
+def bitacora_view(request):
+    logs = Bitacora.objects.all().order_by('-fecha')
+    return render(request, 'accounts/bitacora.html', {'logs': logs})

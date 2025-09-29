@@ -84,7 +84,7 @@ class Bitacora(models.Model):
     usuario = models.ForeignKey('Usuario', models.DO_NOTHING)
     entidad = models.CharField(max_length=60)
     entidad_id = models.IntegerField()
-    accion = models.CharField(max_length=10)
+    accion = models.CharField(max_length=50)
     ip = models.CharField(max_length=64, blank=True, null=True)
     fecha = models.DateTimeField(blank=True, null=True)
 

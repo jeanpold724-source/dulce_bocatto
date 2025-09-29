@@ -1,0 +1,25 @@
+<h2>Historial de acciones</h2>
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Usuario</th>
+      <th>Acción</th>
+      <th>Entidad</th>
+      <th>ID</th>
+      <th>IP</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for log in logs %}
+      <tr>
+        <td>{{ log.fecha|date:"d/m/Y H:i" }}</td>
+        <td>{{ log.usuario.nombre }}</td>
+        <td>{{ log.accion }}</td>
+        <td>{{ log.entidad }}</td>
+        <td>{{ log.entidad_id }}</td>
+        <td>{{ log.ip }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
