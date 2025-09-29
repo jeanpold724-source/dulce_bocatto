@@ -1,4 +1,5 @@
 from django.urls import path
+from .views import cancelar_pedido
 from .views import (
     register_view,
     CustomLoginView,
@@ -15,4 +16,5 @@ urlpatterns = [
     path('perfil/', perfil_view, name='perfil'),
     path('catalogo/', catalogo_view, name='catalogo'),
     path('pedido/<int:sabor_id>/', crear_pedido, name='crear_pedido'),
+    path('cancelar-pedido/<int:pedido_id>/', cancelar_pedido, name='cancelar_pedido'),
 ]

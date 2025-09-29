@@ -19,6 +19,13 @@
       {{ pedido.metodo_envio }} a {{ pedido.direccion_entrega }} – 
       Entrega: {{ pedido.fecha_entrega_programada|date:"d/m/Y H:i" }} – 
       Estado: {{ pedido.estado }}
+
+      {% if pedido.estado == 'PENDIENTE' %}
+        <form method="POST" action="{% url 'cancelar_pedido' pedido.id %}" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger btn-sm">Cancelar</button>
+        </form>
+      {% endif %}
     </li>
   {% empty %}
     <li>No tienes pedidos registrados.</li>

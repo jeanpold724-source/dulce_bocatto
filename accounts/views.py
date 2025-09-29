@@ -16,6 +16,15 @@ from datetime import datetime
 from accounts.models_db import Cliente, Pedido
 
 
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect
+from accounts.models_db import Pedido
+
+
+
+
+
 
 
 
@@ -112,5 +121,19 @@ def crear_pedido(request, sabor_id):
         return redirect('perfil')
 
     return render(request, 'accounts/crear_pedido.html', {'sabor': sabor})
+
+
+
+@require_POST
+@login_required
+def cancelar_pedido(request, pedido_id):
+    try:
+        pedido = Pedido.objects.get(id=pedido_id)
+        if pedido.estado == 'PENDIENTE':
+            pedido.estado = 'CANCELADO'
+            pedido.save()
+    except Pedido.DoesNotExist:
+        pass
+    return redirect('perfil')
 
 
