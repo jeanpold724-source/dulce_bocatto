@@ -1,20 +1,45 @@
-<h2>Pedir: {{ sabor.nombre }}</h2>
-<form method="post">
-  {% csrf_token %}
-  <label>Método de envío:</label>
-  <select name="metodo_envio">
-    <option value="recoger">Recoger</option>
-    <option value="delivery">Delivery</option>
-  </select><br><br>
+{% extends "base.html" %}
 
-  <label>Dirección de entrega:</label>
-  <input type="text" name="direccion_entrega"><br><br>
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="text-center">Crear Pedido de {{ sabor.nombre }}</h2>
+      </div>
+      <div class="card-body">
+        <form method="post" action="{% url 'crear_pedido' sabor.id %}">
+          {% csrf_token %}
 
-  <label>Fecha y hora de entrega:</label>
-  <input type="datetime-local" name="fecha_entrega_programada"><br><br>
+          <div class="mb-3">
+            <label for="metodo_envio" class="form-label">Método de Envío</label>
+            <select name="metodo_envio" id="metodo_envio" class="form-select">
+              <option value="local">Recoger en Local</option>
+              <option value="delivery">Envío a Domicilio</option>
+            </select>
+          </div>
 
-  <label>Observaciones:</label>
-  <textarea name="observaciones"></textarea><br><br>
+          <div class="mb-3">
+            <label for="direccion_entrega" class="form-label">Dirección de Entrega</label>
+            <input type="text" name="direccion_entrega" id="direccion_entrega" class="form-control" placeholder="Si eliges envío a domicilio">
+          </div>
 
-  <button type="submit" class="btn btn-primary">Confirmar Pedido</button>
-</form>
+          <div class="mb-3">
+            <label for="fecha_entrega_programada" class="form-label">Fecha de Entrega Programada (Opcional)</label>
+            <input type="datetime-local" name="fecha_entrega_programada" id="fecha_entrega_programada" class="form-control">
+          </div>
+
+          <div class="mb-3">
+            <label for="observaciones" class="form-label">Observaciones</label>
+            <textarea name="observaciones" id="observaciones" class="form-control" rows="3"></textarea>
+          </div>
+
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary">Realizar Pedido</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

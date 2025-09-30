@@ -1,10 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <div class="p-4 bg-white shadow-sm rounded">
-    <h1 class="mb-2">Bienvenido a Dulce Bocatto</h1>
-    <p class="text-muted">Explora el catálogo o revisa tu perfil.</p>
-    <a class="btn btn-primary me-2" href="{% url 'catalogo' %}">Ver catálogo</a>
-    <a class="btn btn-outline-secondary" href="{% url 'perfil' %}">Mi perfil</a>
+  <div class="p-5 mb-4 bg-light rounded-3">
+    <div class="container-fluid py-5">
+      <h1 class="display-5 fw-bold">Bienvenido a Dulce Bocatto</h1>
+      <p class="col-md-8 fs-4">Explora nuestro delicioso catálogo de postres y gestiona tus pedidos de forma sencilla.</p>
+      <a class="btn btn-primary btn-lg me-2" href="{% url 'catalogo' %}">Ver catálogo</a>
+      <a class="btn btn-outline-secondary btn-lg" href="{% url 'perfil' %}">Mi perfil</a>
+    </div>
   </div>
 {% endblock %}

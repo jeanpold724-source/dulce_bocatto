@@ -1,47 +1,77 @@
-<h2>Bienvenido,</h2>
-<ul>
-  <li><strong>Teléfono:</strong> {{ cliente.telefono }}</li>
-  <li><strong>Dirección:</strong> {{ cliente.direccion }}</li>
-  <li><strong>Email:</strong> {{ request.user.email }}</li>
-</ul>
+{% extends "base.html" %}
 
-<form method="POST" action="{% url 'logout' %}">
-  {% csrf_token %}
-  <button type="submit" class="btn btn-outline-danger btn-sm">
-    <i class="bi bi-box-arrow-right"></i> Cerrar sesión
-  </button>
-</form>
-
-{% if confirmado %}
-  <div class="alert alert-success">
-    ¡Tu pedido fue confirmado exitosamente!
-  </div>
-{% endif %}
-
-<h3>Mis pedidos</h3>
-<ul>
-  {% for pedido in pedidos %}
-    <li>
-      <strong>{{ pedido.created_at|date:"d/m/Y H:i" }}</strong> – 
-      {{ pedido.metodo_envio }} a {{ pedido.direccion_entrega }} – 
-      Entrega: {{ pedido.fecha_entrega_programada|date:"d/m/Y H:i" }} – 
-      Estado: {{ pedido.estado }}
-
-      {% if pedido.estado == 'PENDIENTE' %}
-        <form method="POST" action="{% url 'cancelar_pedido' pedido.id %}" style="display:inline;">
+{% block content %}
+<div class="row">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h2>Perfil de Usuario</h2>
+      </div>
+      <div class="card-body">
+        <p><strong>Nombre de usuario:</strong> {{ user.username }}</p>
+        <p><strong>Email:</strong> {{ user.email }}</p>
+        <p><strong>Teléfono:</strong> {{ user.phone }}</p>
+        <form method="POST" action="{% url 'logout' %}">
           {% csrf_token %}
-          <button type="submit" class="btn btn-danger btn-sm">Cancelar</button>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-danger">
+              Cerrar sesión
+            </button>
+          </div>
         </form>
-      {% endif %}
-      {% if pedido.estado == 'PENDIENTE' %}
-  <form method="POST" action="{% url 'confirmar_pedido' pedido.id %}">
-    {% csrf_token %}
-    <button type="submit" class="btn btn-success">Confirmar</button>
-  </form>
-{% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-8">
+    <h2>Mis Pedidos</h2>
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
 
-    </li>
-  {% empty %}
-    <li>No tienes pedidos registrados.</li>
-  {% endfor %}
-</ul>
+    {% if pedidos %}
+      <div class="table-responsive">
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Método de Envío</th>
+              <th>Dirección de Entrega</th>
+              <th>Fecha de Entrega</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pedido in pedidos %}
+            <tr>
+              <td>{{ pedido.created_at|date:"d/m/Y H:i" }}</td>
+              <td>{{ pedido.metodo_envio }}</td>
+              <td>{{ pedido.direccion_entrega }}</td>
+              <td>{{ pedido.fecha_entrega_programada|date:"d/m/Y H:i" }}</td>
+              <td><span class="badge bg-{% if pedido.estado == 'PENDIENTE' %}warning{% elif pedido.estado == 'CONFIRMADO' %}success{% elif pedido.estado == 'CANCELADO' %}danger{% else %}secondary{% endif %}">{{ pedido.estado }}</span></td>
+              <td>
+                {% if pedido.estado == 'PENDIENTE' %}
+                <form method="POST" action="{% url 'confirmar_pedido' pedido.id %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-success btn-sm">Confirmar</button>
+                </form>
+                <form method="POST" action="{% url 'cancelar_pedido' pedido.id %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-danger btn-sm">Cancelar</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p>No tienes pedidos registrados.</p>
+    {% endif %}
+    <a href="{% url 'crear_pedido' %}" class="btn btn-primary mt-3">Crear Nuevo Pedido</a>
+  </div>
+</div>
+{% endblock %}

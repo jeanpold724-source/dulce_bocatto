@@ -11,65 +11,48 @@ from django.utils.timezone import make_aware
 from django.views.decorators.http import require_POST
 
 from .forms import RegistroForm, LoginForm
-from .models import User  # si no lo usas, puedes quitar esta línea
 from .models_db import Usuario, Cliente, Sabor, Pedido, Bitacora
 
-from django.http import HttpResponse
 
-
-
-# =======================
-# Helpers
-# =======================
 def get_cliente_actual(request):
-    """
-    Resuelve el Cliente usando el email del usuario autenticado.
-    Evita colisiones por nombre.
-    """
+    """Obtiene el cliente actual a partir del usuario autenticado."""
     usuario_base = get_object_or_404(Usuario, email=request.user.email)
     return get_object_or_404(Cliente, usuario=usuario_base)
 
-
 def ip_from_request(request):
+    """Obtiene la dirección IP del cliente a partir del request."""
     return request.META.get("HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", ""))
 
-
-# =======================
-# Auth / públicas
-# =======================
 class CustomLoginView(LoginView):
+    """Vista de inicio de sesión personalizada."""
     authentication_form = LoginForm
     template_name = "accounts/login.html"
 
-
 def home_view(request):
+    """Muestra la página de inicio."""
     return render(request, "accounts/home.html")
 
-
-
 def catalogo_view(request):
-    # Si "activo" es TINYINT(1) en MySQL, usar 1; si es boolean, True.
+    """Muestra el catálogo de sabores de galletas."""
     sabores = Sabor.objects.filter(activo=1).order_by("nombre")
     return render(request, "accounts/catalogo.html", {"sabores": sabores})
 
-
 def register_view(request):
+    """Gestiona el registro de nuevos usuarios."""
     if request.method == "POST":
         form = RegistroForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
 
-            # Crear Usuario en la base original
+            # Crear Usuario y Cliente en la base de datos original
             usuario_base = Usuario.objects.create(
                 nombre=user.first_name,
                 email=user.email,
-                hash_password=user.password,  # si la otra BD requiere hashing propio, ajusta aquí
+                hash_password=user.password,  # Considerar un mejor manejo de contraseñas
                 telefono=getattr(user, "phone", ""),
                 activo=True,
             )
-
-            # Crear Cliente vinculado
             Cliente.objects.create(
                 usuario=usuario_base,
                 nombre=usuario_base.nombre,
@@ -77,44 +60,22 @@ def register_view(request):
                 direccion="Dirección por defecto",
             )
 
-            messages.success(request, "Registro completo. ¡Bienvenido!")
+            messages.success(request, "¡Registro completado! Bienvenido a Dulce Bocatto.")
             return redirect("perfil")
     else:
         form = RegistroForm()
     return render(request, "accounts/register.html", {"form": form})
 
-
-# =======================
-# Perfil
-# =======================
 @login_required
 def perfil_view(request):
-    try:
-        cliente = get_cliente_actual(request)
-    except Exception:
-        return render(
-            request,
-            "accounts/error.html",
-            {"mensaje": "Cliente no encontrado"},
-        )
-
+    """Muestra el perfil del usuario, incluyendo sus pedidos."""
+    cliente = get_cliente_actual(request)
     pedidos = Pedido.objects.filter(cliente=cliente).order_by("-created_at")
-    return render(
-        request,
-        "accounts/perfil.html",
-        {"cliente": cliente, "pedidos": pedidos},
-    )
+    return render(request, "accounts/perfil.html", {"cliente": cliente, "pedidos": pedidos})
 
-
-# =======================
-# Pedidos
-# =======================
 @login_required
 def crear_pedido(request, sabor_id):
-    """
-    GET: muestra formulario (si lo usas)
-    POST: crea pedido y registra en bitácora
-    """
+    """Muestra el formulario para crear un pedido y procesa su envío."""
     sabor = get_object_or_404(Sabor, id=sabor_id, activo=1)
     cliente = get_cliente_actual(request)
 
@@ -124,15 +85,14 @@ def crear_pedido(request, sabor_id):
         fecha_str = request.POST.get("fecha_entrega_programada", "")
         observaciones = request.POST.get("observaciones", "")
 
-        # Fecha programada (opcional)
-        fecha = None
+        fecha_entrega = None
         if fecha_str:
             try:
-                fecha = make_aware(datetime.strptime(fecha_str, "%Y-%m-%dT%H:%M"))
-            except Exception:
-                fecha = None
+                fecha_entrega = make_aware(datetime.strptime(fecha_str, "%Y-%m-%dT%H:%M"))
+            except (ValueError, TypeError):
+                pass  # Mantener como None si hay error
 
-        # Totales (demostrativo)
+        # Lógica de costos
         precio_base = Decimal("10.00")
         costo_envio = Decimal("5.00") if metodo == "delivery" else Decimal("0.00")
         total = precio_base + costo_envio
@@ -147,7 +107,7 @@ def crear_pedido(request, sabor_id):
             total=total,
             observaciones=observaciones,
             created_at=timezone.now(),
-            fecha_entrega_programada=fecha,
+            fecha_entrega_programada=fecha_entrega,
         )
 
         Bitacora.objects.create(
@@ -159,20 +119,17 @@ def crear_pedido(request, sabor_id):
             fecha=timezone.now(),
         )
 
-        messages.success(request, "Pedido creado. Revisa tu perfil para confirmarlo.")
+        messages.success(request, "Pedido creado con éxito. Por favor, confírmalo en tu perfil.")
         return redirect("perfil")
 
-    # Si usas un formulario explícito de creación:
     return render(request, "accounts/crear_pedido.html", {"sabor": sabor})
-
 
 @login_required
 @require_POST
 def confirmar_pedido(request, pedido_id):
+    """Confirma un pedido pendiente."""
     cliente = get_cliente_actual(request)
-    pedido = get_object_or_404(
-        Pedido, id=pedido_id, cliente=cliente, estado="PENDIENTE"
-    )
+    pedido = get_object_or_404(Pedido, id=pedido_id, cliente=cliente, estado="PENDIENTE")
 
     pedido.estado = "CONFIRMADO"
     pedido.save()
@@ -186,17 +143,15 @@ def confirmar_pedido(request, pedido_id):
         fecha=timezone.now(),
     )
 
-    messages.success(request, "Pedido confirmado.")
+    messages.success(request, "Tu pedido ha sido confirmado.")
     return redirect("perfil")
-
 
 @login_required
 @require_POST
 def cancelar_pedido(request, pedido_id):
+    """Cancela un pedido pendiente."""
     cliente = get_cliente_actual(request)
-    pedido = get_object_or_404(
-        Pedido, id=pedido_id, cliente=cliente, estado="PENDIENTE"
-    )
+    pedido = get_object_or_404(Pedido, id=pedido_id, cliente=cliente, estado="PENDIENTE")
 
     pedido.estado = "CANCELADO"
     pedido.save()
@@ -210,16 +165,11 @@ def cancelar_pedido(request, pedido_id):
         fecha=timezone.now(),
     )
 
-    messages.info(request, "Pedido cancelado.")
+    messages.info(request, "Tu pedido ha sido cancelado.")
     return redirect("perfil")
 
-
-# =======================
-# Bitácora
-# =======================
 @login_required
 def bitacora_view(request):
-    # Si quieres filtrar por el usuario actual, cambia a:
-    # logs = Bitacora.objects.filter(usuario=get_cliente_actual(request).usuario).order_by('-fecha')
+    """Muestra la bitácora de eventos del sistema."""
     logs = Bitacora.objects.all().order_by("-fecha")
     return render(request, "accounts/bitacora.html", {"logs": logs})
