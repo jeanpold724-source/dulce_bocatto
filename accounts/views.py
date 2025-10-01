@@ -99,7 +99,6 @@ def crear_pedido(request, sabor_id):
 
         pedido = Pedido.objects.create(
             cliente=cliente,
-            sabor=sabor,
             estado="PENDIENTE",
             metodo_envio=metodo,
             costo_envio=costo_envio,
