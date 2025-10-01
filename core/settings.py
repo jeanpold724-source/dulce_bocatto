@@ -27,7 +27,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    'accounts',
+    "accounts.apps.AccountsConfig",
 ]
 
 MIDDLEWARE = [
@@ -38,6 +38,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "core.middleware.AuditWriteMiddleware",
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -84,9 +85,13 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 LANGUAGE_CODE = 'es'
-TIME_ZONE = 'America/La_Paz'
 USE_I18N = True
+# settings.py
+TIME_ZONE = "America/La_Paz"
 USE_TZ = True
+
+
+
 
 
 # Static files (CSS, JavaScript, Images)

@@ -3,6 +3,8 @@ from .views import cancelar_pedido
 from .views import bitacora_view
 from .views import confirmar_pedido
 
+from .views import perfil_editar, cambiar_password
+
 from .views import (
     register_view,
     CustomLoginView,
@@ -22,5 +24,7 @@ urlpatterns = [
     path('cancelar-pedido/<int:pedido_id>/', cancelar_pedido, name='cancelar_pedido'),
     path('bitacora/', bitacora_view, name='bitacora'),
     path('confirmar-pedido/<int:pedido_id>/', confirmar_pedido, name='confirmar_pedido'),
+    path("perfil/editar/", perfil_editar, name="perfil_editar"),
+    path("perfil/cambiar-password/", cambiar_password, name="cambiar_password"),
     
 ]
