@@ -13,11 +13,50 @@ from django.views.decorators.http import require_POST
 from .forms import RegistroForm, LoginForm
 from .models_db import Usuario, Cliente, Sabor, Pedido, Bitacora
 
+from django.db import transaction
 
 def get_cliente_actual(request):
-    """Obtiene el cliente actual a partir del usuario autenticado."""
-    usuario_base = get_object_or_404(Usuario, email=request.user.email)
-    return get_object_or_404(Cliente, usuario=usuario_base)
+    """
+    Obtiene (o crea si no existe) el Cliente ligado al usuario autenticado.
+    Evita 404 cuando el User de Django no tiene su espejo en tablas legadas.
+    """
+    # Si no hay user autenticado, 404 igual
+    if not request.user.is_authenticated:
+        raise Http404("No autenticado")
+
+    email = (request.user.email or "").strip().lower()
+    if not email:
+        # Si tu modelo legado requiere email sí o sí
+        raise Http404("El usuario no tiene email asignado")
+
+    # Campos “mejores esfuerzos” desde el User de Django
+    nombre = (request.user.first_name or request.user.username or "").strip()
+    telefono = getattr(request.user, "phone", "")  # si no tienes ese campo, quedará vacío
+
+    with transaction.atomic():
+        # 1) Usuario legado
+        usuario_base, _ = Usuario.objects.get_or_create(
+            email=email,
+            defaults={
+                "nombre": nombre or email,
+                # OJO: en tu legado está guardando hash/contraseña; acá dejamos un placeholder
+                "hash_password": request.user.password,
+                "telefono": telefono,
+                "activo": 1,
+            },
+        )
+
+        # 2) Cliente legado
+        cliente, _ = Cliente.objects.get_or_create(
+            usuario=usuario_base,
+            defaults={
+                "nombre": usuario_base.nombre,
+                "telefono": usuario_base.telefono,
+                "direccion": "Dirección por defecto",
+            },
+        )
+
+    return cliente
 
 def ip_from_request(request):
     """Obtiene la dirección IP del cliente a partir del request."""
