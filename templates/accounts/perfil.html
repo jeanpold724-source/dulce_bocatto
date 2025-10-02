@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load tz %}
 
 {% block content %}
 <div class="row">
@@ -11,6 +12,8 @@
         <p><strong>Nombre de usuario:</strong> {{ user.username }}</p>
         <p><strong>Email:</strong> {{ user.email }}</p>
         <p><strong>Teléfono:</strong> {{ user.phone }}</p>
+        <a href="{% url 'perfil_editar' %}" class="btn btn-warning mb-2">Editar Perfil</a>
+        <a href="{% url 'cambiar_password' %}" class="btn btn-secondary mb-2">Cambiar Contraseña</a>
         <form method="POST" action="{% url 'logout' %}">
           {% csrf_token %}
           <div class="d-grid">
@@ -22,6 +25,7 @@
       </div>
     </div>
   </div>
+
   <div class="col-md-8">
     <h2>Mis Pedidos</h2>
     {% if messages %}
@@ -46,11 +50,21 @@
           <tbody>
             {% for pedido in pedidos %}
             <tr>
-              <td>{{ pedido.created_at|date:"d/m/Y H:i" }}</td>
+              <td>{{ pedido.created_at|localtime|date:"d/m/Y H:i" }}</td>
               <td>{{ pedido.metodo_envio }}</td>
               <td>{{ pedido.direccion_entrega }}</td>
-              <td>{{ pedido.fecha_entrega_programada|date:"d/m/Y H:i" }}</td>
-              <td><span class="badge bg-{% if pedido.estado == 'PENDIENTE' %}warning{% elif pedido.estado == 'CONFIRMADO' %}success{% elif pedido.estado == 'CANCELADO' %}danger{% else %}secondary{% endif %}">{{ pedido.estado }}</span></td>
+              <td>
+                {% if pedido.fecha_entrega_programada %}
+                  {{ pedido.fecha_entrega_programada|localtime|date:"d/m/Y H:i" }}
+                {% else %}
+                  –
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge bg-{% if pedido.estado == 'PENDIENTE' %}warning{% elif pedido.estado == 'CONFIRMADO' %}success{% elif pedido.estado == 'CANCELADO' %}danger{% else %}secondary{% endif %}">
+                  {{ pedido.estado }}
+                </span>
+              </td>
               <td>
                 {% if pedido.estado == 'PENDIENTE' %}
                 <form method="POST" action="{% url 'confirmar_pedido' pedido.id %}" class="d-inline">
