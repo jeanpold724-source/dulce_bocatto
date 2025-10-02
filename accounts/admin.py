@@ -2,17 +2,20 @@
 from django.contrib import admin
 from .models_db import Bitacora, Sabor, Producto
 
+
 @admin.register(Sabor)
 class SaborAdmin(admin.ModelAdmin):
-    list_display = ("id", "nombre", "activo", "created_at")
+    list_display = ("id", "nombre", "activo", "imagen")   # usamos imagen, no created_at
     search_fields = ("nombre",)
     list_filter = ("activo",)
+
 
 @admin.register(Producto)
 class ProductoAdmin(admin.ModelAdmin):
     list_display = ("id", "nombre", "precio_unitario", "activo", "creado_en")
     search_fields = ("nombre",)
     list_filter = ("activo",)
+
 
 @admin.register(Bitacora)
 class BitacoraAdmin(admin.ModelAdmin):

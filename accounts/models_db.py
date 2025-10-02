@@ -369,9 +369,12 @@ class RolPermiso(models.Model):
 
 
 class Sabor(models.Model):
-    nombre = models.CharField(unique=True, max_length=120)
-    activo = models.IntegerField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
+    id = models.BigAutoField(primary_key=True)
+    nombre = models.CharField(max_length=100)
+    activo = models.IntegerField()
+    imagen = models.CharField(
+        max_length=200, blank=True, null=True, db_column="imagen"
+    )  # <<-- NUEVO
 
     class Meta:
         managed = False
