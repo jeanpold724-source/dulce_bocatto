@@ -159,106 +159,115 @@ def crear_pedido(request, sabor_id):
     sabor = get_object_or_404(Sabor, id=sabor_id, activo=1)
     cliente = get_cliente_actual(request)
 
-    if request.method == "POST":
-        # cantidad desde el catálogo (min 1, max 99)
-        qty_str = request.POST.get("cantidad", "1")
+    # --- GET: mostrar la pantalla intermedia con cantidad y precio ---
+    if request.method == "GET":
+        # viene del catálogo como ?cantidad=N (si no, 1)
+        qty_str = request.GET.get("cantidad", "1")
         try:
             cantidad = max(1, min(int(qty_str), 99))
         except ValueError:
             cantidad = 1
 
-        metodo = request.POST.get("metodo_envio", "local")  # "local" / "delivery"
-        direccion = request.POST.get("direccion_entrega", "")
-        fecha_str = request.POST.get("fecha_entrega_programada", "")
-        observaciones = request.POST.get("observaciones", "")
-
-        fecha_entrega = None
-        if fecha_str:
-            try:
-                fecha_entrega = make_aware(
-                    datetime.strptime(fecha_str, "%Y-%m-%dT%H:%M")
-                )
-            except (ValueError, TypeError):
-                fecha_entrega = None
-
-        precio_unit = get_precio_unit()
-        # costo de envío: 5 si es delivery, 0 si es local/retiro
-        costo_envio = Decimal("5.00") if metodo.lower() == "delivery" else Decimal("0.00")
-
-        # 1) Crea el pedido (total se actualiza después de insertar el detalle)
-        pedido = Pedido.objects.create(
-            cliente=cliente,
-            estado="PENDIENTE",
-            metodo_envio=metodo,
-            costo_envio=costo_envio,
-            direccion_entrega=direccion,
-            total=Decimal("0.00"),
-            observaciones=observaciones,
-            created_at=timezone.now(),
-            fecha_entrega_programada=fecha_entrega,
-        )
-
-        # 2) Asegura un producto base ("Galleta") o usa el primero disponible
-        producto = Producto.objects.filter(nombre__iexact="Galleta").first()
-        if not producto:
-            producto = Producto.objects.first()
-            if not producto:
-                messages.error(
-                    request, "No hay productos definidos. Crea 'Galleta' en la base."
-                )
-                return redirect("catalogo")
-
-        # 3) Inserta el DETALLE por SQL (no hay modelo ORM para clave compuesta)
-        with connection.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO detalle_pedido (pedido_id, producto_id, sabor_id, cantidad, precio_unitario)
-                VALUES (%s, %s, %s, %s, %s)
-                """,
-                [pedido.id, producto.id, sabor.id, cantidad, precio_unit],
-            )
-
-        # 4) Suma sub_totales (columna GENERATED) y actualiza total = subtotal + envío
-        with connection.cursor() as cur:
-            cur.execute(
-                """
-                SELECT COALESCE(SUM(sub_total), 0)
-                FROM detalle_pedido
-                WHERE pedido_id = %s
-                """,
-                [pedido.id],
-            )
-            subtotal = Decimal(cur.fetchone()[0] or 0)
-
-        pedido.total = subtotal + costo_envio
-        pedido.save(update_fields=["total"])
-
-        # Bitácora
-        try:
-            Bitacora.objects.create(
-                usuario=cliente.usuario,
-                entidad="Pedido",
-                entidad_id=pedido.id,
-                accion="CREAR",
-                ip=ip_from_request(request),
-                fecha=timezone.now(),
-            )
-        except Exception:
-            pass
-        try:
-            log_event(request, "Pedido", pedido.id, "CREAR", f"{cantidad} x {sabor.nombre}")
-        except Exception:
-            pass
-
-        messages.success(
+        return render(
             request,
-            f"Añadido: {cantidad} × {sabor.nombre}. "
-            f"Subtotal Bs {subtotal:.2f} | Envío Bs {costo_envio:.2f} | Total Bs {(subtotal + costo_envio):.2f}"
+            "accounts/crear_pedido.html",
+            {
+                "sabor": sabor,
+                "cantidad": cantidad,
+                "precio_unit": get_precio_unit(),  # <-- importante
+            },
         )
-        return redirect("perfil")
 
-    # GET (si usas la página intermedia)
-    return render(request, "accounts/crear_pedido.html", {"sabor": sabor})
+    # --- POST: crear el pedido y el detalle ---
+    # cantidad desde el formulario intermedio
+    qty_str = request.POST.get("cantidad", "1")
+    try:
+        cantidad = max(1, min(int(qty_str), 99))
+    except ValueError:
+        cantidad = 1
+
+    metodo = request.POST.get("metodo_envio", "local")  # "local" / "delivery"
+    direccion = request.POST.get("direccion_entrega", "")
+    fecha_str = request.POST.get("fecha_entrega_programada", "")
+    observaciones = request.POST.get("observaciones", "")
+
+    fecha_entrega = None
+    if fecha_str:
+        try:
+            fecha_entrega = make_aware(datetime.strptime(fecha_str, "%Y-%m-%dT%H:%M"))
+        except (ValueError, TypeError):
+            fecha_entrega = None
+
+    precio_unit = get_precio_unit()
+    costo_envio = Decimal("5.00") if metodo.lower() == "delivery" else Decimal("0.00")
+
+    # 1) Pedido
+    pedido = Pedido.objects.create(
+        cliente=cliente,
+        estado="PENDIENTE",
+        metodo_envio=metodo,
+        costo_envio=costo_envio,
+        direccion_entrega=direccion,
+        total=Decimal("0.00"),
+        observaciones=observaciones,
+        created_at=timezone.now(),
+        fecha_entrega_programada=fecha_entrega,
+    )
+
+    # 2) Producto base
+    producto = Producto.objects.filter(nombre__iexact="Galleta").first() or Producto.objects.first()
+    if not producto:
+        messages.error(request, "No hay productos definidos. Crea 'Galleta' en la base.")
+        return redirect("catalogo")
+
+    # 3) Detalle (por SQL porque la tabla usa clave compuesta)
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO detalle_pedido (pedido_id, producto_id, sabor_id, cantidad, precio_unitario)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            [pedido.id, producto.id, sabor.id, cantidad, precio_unit],
+        )
+
+    # 4) Total = suma subtotales + envío
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            SELECT COALESCE(SUM(sub_total), 0)
+            FROM detalle_pedido
+            WHERE pedido_id = %s
+            """,
+            [pedido.id],
+        )
+        subtotal = Decimal(cur.fetchone()[0] or 0)
+
+    pedido.total = subtotal + costo_envio
+    pedido.save(update_fields=["total"])
+
+    # Bitácora (a prueba de fallos)
+    try:
+        Bitacora.objects.create(
+            usuario=cliente.usuario,
+            entidad="Pedido",
+            entidad_id=pedido.id,
+            accion="CREAR",
+            ip=ip_from_request(request),
+            fecha=timezone.now(),
+        )
+    except Exception:
+        pass
+    try:
+        log_event(request, "Pedido", pedido.id, "CREAR", f"{cantidad} x {sabor.nombre}")
+    except Exception:
+        pass
+
+    messages.success(
+        request,
+        f"Añadido: {cantidad} × {sabor.nombre}. "
+        f"Subtotal Bs {subtotal:.2f} | Envío Bs {costo_envio:.2f} | Total Bs {(subtotal + costo_envio):.2f}"
+    )
+    return redirect("perfil")
 
 
 # ---------- Confirmar / Cancelar ----------

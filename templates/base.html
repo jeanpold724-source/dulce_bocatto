@@ -7,23 +7,83 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- Bootstrap CDN -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Estilos Dulce Bocatto -->
+  <style>
+    :root {
+      --rosa: #ff80aa;   /* Rosa pastel del logo */
+      --cafe: #5a3a29;   /* Café galleta/chocolate */
+      --celeste: #82cfd1;/* Celeste/mint del cupcake */
+      --blanco: #ffffff;
+    }
+
+    body {
+      background-color: var(--blanco);
+    }
+
+    /* Navbar */
+    .navbar {
+      background-color: var(--rosa) !important;
+    }
+    .navbar-brand {
+      font-weight: bold;
+      color: var(--blanco) !important;
+    }
+    .navbar .btn {
+      border-color: var(--blanco) !important;
+      color: var(--blanco) !important;
+    }
+    .navbar .btn:hover {
+      background-color: var(--cafe) !important;
+      color: var(--blanco) !important;
+    }
+
+    /* Botones */
+    .btn-primary {
+      background-color: var(--rosa) !important;
+      border-color: var(--rosa) !important;
+    }
+    .btn-primary:hover {
+      background-color: var(--cafe) !important;
+      border-color: var(--cafe) !important;
+    }
+
+    /* Títulos */
+    h1, h2, h3, h4 {
+      color: var(--cafe);
+      font-weight: bold;
+    }
+
+    /* Footer */
+    footer {
+      background-color: var(--cafe) !important;
+      color: var(--blanco) !important;
+    }
+
+    /* Badges disponibles */
+    .badge.text-bg-success {
+      background-color: var(--celeste) !important;
+      color: var(--cafe) !important;
+    }
+  </style>
 </head>
-<body class="bg-light">
+<body>
 
   <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <nav class="navbar navbar-expand-lg">
     <div class="container">
-      <a class="navbar-brand" href="{% url 'home' %}">
+      <a class="navbar-brand d-flex align-items-center" href="{% url 'home' %}">
+        <!-- Logo -->
+        <img src="{% static 'images/logo.png' %}" alt="Dulce Bocatto" width="40" class="me-2">
         Dulce Bocatto
       </a>
       <div class="ms-auto">
         <a class="btn btn-sm btn-outline-light me-2" href="{% url 'catalogo' %}">Catálogo</a>
         <a class="btn btn-sm btn-outline-light me-2" href="{% url 'perfil' %}">Perfil</a>
         <form action="{% url 'logout' %}" method="post" class="d-inline">
-  {% csrf_token %}
-  <button class="btn btn-sm btn-outline-light">Salir</button>
-</form>
-
+          {% csrf_token %}
+          <button class="btn btn-sm btn-outline-light">Salir</button>
+        </form>
       </div>
     </div>
   </nav>
@@ -34,7 +94,7 @@
   </main>
 
   <!-- Footer -->
-  <footer class="bg-dark text-light py-3 mt-auto">
+  <footer class="text-light py-3 mt-auto">
     <div class="container text-center">
       <small>&copy; 2025 Dulce Bocatto</small>
     </div>

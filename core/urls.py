@@ -20,11 +20,15 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth.views import LogoutView
 from django.conf import settings
 from django.conf.urls.static import static
+from django.urls import path, include
+
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
     path('', include('accounts.urls')),
     path('logout/', LogoutView.as_view(), name='logout'),
+    path("admin/", admin.site.urls),   # <-- necesario
+    path("", include("accounts.urls")),
+    
 ]
 
 if settings.DEBUG:

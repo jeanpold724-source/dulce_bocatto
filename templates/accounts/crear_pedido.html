@@ -1,45 +1,83 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-md-8">
-    <div class="card">
-      <div class="card-header">
-        <h2 class="text-center">Crear Pedido de {{ sabor.nombre }}</h2>
-      </div>
-      <div class="card-body">
-        <form method="post" action="{% url 'crear_pedido' sabor.id %}">
-          {% csrf_token %}
+<div class="container py-4" style="max-width: 900px;">
+  <h3 class="mb-3 text-center">Crear Pedido de {{ sabor.nombre }}</h3>
 
-          <div class="mb-3">
-            <label for="metodo_envio" class="form-label">Método de Envío</label>
-            <select name="metodo_envio" id="metodo_envio" class="form-select">
-              <option value="local">Recoger en Local</option>
-              <option value="delivery">Envío a Domicilio</option>
-            </select>
-          </div>
+  <form method="post" class="card shadow-sm border-0">
+    {% csrf_token %}
+    <div class="card-body">
+      <div class="row g-3">
 
-          <div class="mb-3">
-            <label for="direccion_entrega" class="form-label">Dirección de Entrega</label>
-            <input type="text" name="direccion_entrega" id="direccion_entrega" class="form-control" placeholder="Si eliges envío a domicilio">
-          </div>
+        <div class="col-sm-4">
+          <label class="form-label">Cantidad</label>
+          <input type="number" name="cantidad" value="{{ cantidad }}" min="1" max="99"
+                 class="form-control" oninput="recalcular()">
+          <div class="form-text">Precio unitario: <b>Bs {{ precio_unit }}</b></div>
+        </div>
 
-          <div class="mb-3">
-            <label for="fecha_entrega_programada" class="form-label">Fecha de Entrega Programada (Opcional)</label>
-            <input type="datetime-local" name="fecha_entrega_programada" id="fecha_entrega_programada" class="form-control">
+        <div class="col-sm-8">
+          <label class="form-label d-block">Método de Envío</label>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="metodo_envio" id="met_local"
+                   value="local" checked onclick="recalcular()">
+            <label class="form-check-label" for="met_local">Recoger en Local (sin costo)</label>
           </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="metodo_envio" id="met_delivery"
+                   value="delivery" onclick="recalcular()">
+            <label class="form-check-label" for="met_delivery">Envío a domicilio (Bs 5)</label>
+          </div>
+        </div>
 
-          <div class="mb-3">
-            <label for="observaciones" class="form-label">Observaciones</label>
-            <textarea name="observaciones" id="observaciones" class="form-control" rows="3"></textarea>
-          </div>
+        <div class="col-12">
+          <label class="form-label">Dirección de Entrega</label>
+          <input type="text" name="direccion_entrega" class="form-control"
+                 placeholder="Si eliges envío a domicilio">
+        </div>
 
-          <div class="d-grid">
-            <button type="submit" class="btn btn-primary">Realizar Pedido</button>
+        <div class="col-sm-6">
+          <label class="form-label">Fecha de Entrega Programada (Opcional)</label>
+          <input type="datetime-local" name="fecha_entrega_programada" class="form-control">
+        </div>
+
+        <div class="col-sm-6">
+          <label class="form-label">Observaciones</label>
+          <input type="text" name="observaciones" class="form-control"
+                 placeholder="Ej: sin maní, tocar timbre, etc.">
+        </div>
+
+        <div class="col-12">
+          <div class="alert alert-secondary mb-0">
+            <div><strong>Resumen</strong></div>
+            <div>Subtotal: <span id="subtotal">Bs 0.00</span></div>
+            <div>Envío: <span id="envio">Bs 0.00</span></div>
+            <div class="fw-bold">Total: <span id="total">Bs 0.00</span></div>
           </div>
-        </form>
+        </div>
+
       </div>
     </div>
-  </div>
+    <div class="card-footer bg-white border-0 d-flex gap-2">
+      <a href="{% url 'catalogo' %}" class="btn btn-outline-secondary">Volver al Catálogo</a>
+      <button class="btn btn-primary ms-auto" type="submit">Realizar Pedido</button>
+    </div>
+  </form>
 </div>
+
+<script>
+  const PRECIO = {{ precio_unit }};
+  function recalcular(){
+    const qty = parseInt(document.querySelector('input[name=cantidad]').value || '1', 10);
+    const delivery = document.getElementById('met_delivery').checked;
+    const envio = delivery ? 5 : 0;
+    const subtotal = qty * PRECIO;
+    const total = subtotal + envio;
+    document.getElementById('subtotal').innerText = `Bs ${subtotal.toFixed(2)}`;
+    document.getElementById('envio').innerText = `Bs ${envio.toFixed(2)}`;
+    document.getElementById('total').innerText = `Bs ${total.toFixed(2)}`;
+  }
+  recalcular();
+</script>
 {% endblock %}
