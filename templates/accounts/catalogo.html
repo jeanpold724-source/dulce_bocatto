@@ -2,26 +2,58 @@
 {% load static %}
 
 {% block content %}
-<div class="container">
+<div style="position:fixed;top:0;left:0;background:#ffd;padding:6px 10px;z-index:9999">PLANTILLA V2</div>
+
+<div class="container py-3">
   <h2 class="text-center mb-4">Catálogo de Galletas 🍪</h2>
-  <div class="row">
-    {% for sabor in sabores %}
-    <div class="col-md-4">
-      <div class="card mb-4 shadow-sm">
-        <img src="{% static 'images/cookie.jpg' %}" class="card-img-top" alt="Galleta">
-        <div class="card-body">
-          <h5 class="card-title">{{ sabor.nombre }}</h5>
-          <p class="card-text">¡Delicioso sabor disponible!</p>
-          <div class="d-flex justify-content-between align-items-center">
-            <div class="btn-group">
-              <a href="{% url 'crear_pedido' sabor.id %}" class="btn btn-sm btn-outline-secondary">Pedir</a>
-            </div>
-            <small class="text-muted">Disponible</small>
+
+  {% if sabores %}
+    <div class="row g-4">
+      {% for sabor in sabores %}
+      <div class="col-12 col-sm-6 col-lg-4">
+        <div class="card shadow-sm h-100 border-0">
+          <div class="ratio ratio-16x9">
+            {% if sabor.imagen_url %}
+              <img src="{{ sabor.imagen_url }}" class="card-img-top object-fit-cover" alt="{{ sabor.nombre }}">
+            {% else %}
+              <img src="{% static 'images/cookie.jpg' %}" class="card-img-top object-fit-cover" alt="{{ sabor.nombre }}">
+            {% endif %}
+          </div>
+
+          <div class="card-body d-flex flex-column">
+            <h5 class="card-title mb-1">{{ sabor.nombre }}</h5>
+            <p class="text-muted mb-2">Precio: <strong>Bs {{ precio|default:10 }}</strong> c/u</p>
+
+            <form action="{% url 'crear_pedido' sabor.id %}" method="post" class="mt-auto">
+              {% csrf_token %}
+              <div class="input-group mb-2" style="max-width: 200px;">
+                <button class="btn btn-outline-secondary" type="button" onclick="stepDown(this)">−</button>
+                <input type="number" name="cantidad" value="1" min="1" max="99" class="form-control text-center">
+                <button class="btn btn-outline-secondary" type="button" onclick="stepUp(this)">+</button>
+              </div>
+              <button class="btn btn-primary w-100" type="submit">Añadir</button>
+            </form>
+          </div>
+
+          <div class="card-footer bg-white border-0">
+            <span class="badge text-bg-success">Disponible</span>
           </div>
         </div>
       </div>
+      {% endfor %}
     </div>
-    {% endfor %}
-  </div>
+  {% else %}
+    <div class="alert alert-warning">No hay galletas disponibles (sin stock).</div>
+  {% endif %}
 </div>
+
+<script>
+  function stepUp(btn){ btn.parentElement.querySelector('input[type=number]').stepUp(); }
+  function stepDown(btn){ btn.parentElement.querySelector('input[type=number]').stepDown(); }
+</script>
+
+<style>
+  .object-fit-cover { object-fit: cover; }
+  .ratio-16x9 { --bs-aspect-ratio: 56.25%; }
+</style>
 {% endblock %}

@@ -5,6 +5,9 @@ from .views import confirmar_pedido
 
 from .views import perfil_editar, cambiar_password
 
+
+from .views import catalogo_view, crear_pedido  # importa tus vistas
+
 from .views import (
     register_view,
     CustomLoginView,
@@ -26,5 +29,8 @@ urlpatterns = [
     path('confirmar-pedido/<int:pedido_id>/', confirmar_pedido, name='confirmar_pedido'),
     path("perfil/editar/", perfil_editar, name="perfil_editar"),
     path("perfil/cambiar-password/", cambiar_password, name="cambiar_password"),
+    path("catalogo/", catalogo_view, name="catalogo"),
+    path("pedido/crear/<int:sabor_id>/", crear_pedido, name="crear_pedido"),
+
     
 ]

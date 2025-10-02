@@ -109,3 +109,9 @@ LOGOUT_REDIRECT_URL = '/login/'
 
 # Modelo de usuario personalizado
 AUTH_USER_MODEL = 'accounts.User'
+
+
+# Precio unitario de galleta (Bs)
+import os
+COOKIE_UNIT_PRICE_BS = float(os.getenv("COOKIE_UNIT_PRICE_BS", "10"))
+
