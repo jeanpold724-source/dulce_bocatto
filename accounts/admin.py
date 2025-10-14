@@ -54,3 +54,12 @@ class RolPermisoAdmin(admin.ModelAdmin):
     list_display = ("id", "rol", "permiso")
     search_fields = ("rol__nombre", "permiso__codigo")
     list_select_related = ("rol", "permiso")
+
+
+
+from .models_db import Proveedor
+
+@admin.register(Proveedor)
+class ProveedorAdmin(admin.ModelAdmin):
+    list_display = ("id", "nombre", "telefono", "direccion")
+    search_fields = ("nombre", "telefono")

@@ -20,6 +20,7 @@ from .forms_profile import ProfileForm
 from .models_db import Usuario, Cliente, Sabor, Pedido, Bitacora, Producto
 from .utils import log_event
 
+from .permissions import requiere_permiso
 
 
 # ---------- Helpers ----------
@@ -333,9 +334,11 @@ def cancelar_pedido(request, pedido_id):
 
 # ---------- Bitácora ----------
 @login_required
+@requiere_permiso("permisos.ver")   # <--- ESTA LÍNEA ES LA CLAVE
 def bitacora_view(request):
     logs = Bitacora.objects.all().order_by("-fecha")
     return render(request, "accounts/bitacora.html", {"logs": logs})
+
 
 
 # ---------- Perfil: editar / password ----------
@@ -386,3 +389,131 @@ def cambiar_password(request):
     else:
         form = PasswordChangeForm(request.user)
     return render(request, "accounts/cambiar_password.html", {"form": form})
+
+
+# ============================================
+# CU04 — API: gestionar roles y permisos
+# ============================================
+
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from .models_db import Usuario, Rol, Permiso, UsuarioRol, RolPermiso
+from .serializers import (
+    PermisoSerializer,
+    RolListSerializer, RolWriteSerializer,
+    UsuarioListSerializer, UsuarioRolesWriteSerializer,
+)
+
+# --- Permisos (solo lectura)
+class PermisoViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Permiso.objects.all().order_by("codigo")
+    serializer_class = PermisoSerializer
+
+# --- Roles (CRUD + no borrar si está en uso)
+class RolViewSet(viewsets.ModelViewSet):
+    queryset = Rol.objects.all().order_by("nombre")
+
+    def get_serializer_class(self):
+        if self.action in ("create", "update", "partial_update"):
+            return RolWriteSerializer
+        return RolListSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        rol = self.get_object()
+        if UsuarioRol.objects.filter(rol=rol).exists():
+            return Response(
+                {"detail": "No se puede eliminar el rol porque está asignado a usuarios."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        RolPermiso.objects.filter(rol=rol).delete()
+        return super().destroy(request, *args, **kwargs)
+
+# --- Usuarios (listado + asignar roles)
+class UsuarioViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Usuario.objects.all().order_by("nombre")
+    serializer_class = UsuarioListSerializer
+
+    @action(detail=True, methods=["post"])
+    def asignar_roles(self, request, pk=None):
+        usuario = self.get_object()
+        ser = UsuarioRolesWriteSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        roles_ids = ser.validated_data["roles"]
+
+        UsuarioRol.objects.filter(usuario=usuario).delete()
+        UsuarioRol.objects.bulk_create(
+            [UsuarioRol(usuario=usuario, rol_id=r) for r in roles_ids],
+            ignore_conflicts=True,
+        )
+        return Response({"ok": True, "roles": roles_ids})
+
+
+
+
+from django.core.paginator import Paginator
+from django.contrib.auth.decorators import login_required
+from .permissions import requiere_permiso
+from .forms_proveedor import ProveedorForm
+from .models_db import Proveedor
+
+@login_required
+@requiere_permiso("PROVEEDOR_READ")
+def proveedores_list(request):
+    q = request.GET.get("q", "").strip()
+    qs = Proveedor.objects.all().order_by("nombre")
+    if q:
+        qs = qs.filter(nombre__icontains=q)
+    page = Paginator(qs, 10).get_page(request.GET.get("page"))
+    return render(request, "accounts/proveedores_list.html", {"page": page, "q": q})
+
+@login_required
+@requiere_permiso("PROVEEDOR_WRITE")
+def proveedor_create(request):
+    if request.method == "POST":
+        form = ProveedorForm(request.POST)
+        if form.is_valid():
+            prov = form.save()
+            try:
+                log_event(request, "Proveedor", prov.id, "CREAR", prov.nombre)
+            except Exception:
+                pass
+            messages.success(request, "Proveedor creado.")
+            return redirect("proveedores_list")
+    else:
+        form = ProveedorForm()
+    return render(request, "accounts/proveedor_form.html", {"form": form, "modo": "Crear"})
+
+@login_required
+@requiere_permiso("PROVEEDOR_WRITE")
+def proveedor_update(request, pk):
+    prov = get_object_or_404(Proveedor, pk=pk)
+    if request.method == "POST":
+        form = ProveedorForm(request.POST, instance=prov)
+        if form.is_valid():
+            prov = form.save()
+            try:
+                log_event(request, "Proveedor", prov.id, "ACTUALIZAR", prov.nombre)
+            except Exception:
+                pass
+            messages.success(request, "Proveedor actualizado.")
+            return redirect("proveedores_list")
+    else:
+        form = ProveedorForm(instance=prov)
+    return render(request, "accounts/proveedor_form.html", {"form": form, "modo": "Editar"})
+
+@login_required
+@requiere_permiso("PROVEEDOR_WRITE")
+def proveedor_delete(request, pk):
+    prov = get_object_or_404(Proveedor, pk=pk)
+    if request.method == "POST":
+        nombre = prov.nombre
+        prov.delete()
+        try:
+            log_event(request, "Proveedor", pk, "BORRAR", nombre)
+        except Exception:
+            pass
+        messages.info(request, "Proveedor eliminado.")
+        return redirect("proveedores_list")
+    return render(request, "accounts/proveedor_confirm_delete.html", {"prov": prov})

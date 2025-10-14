@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ modo }} proveedor</h2>
+<form method="post">{% csrf_token %}
+  <div>{{ form.nombre.label_tag }} {{ form.nombre }}</div>
+  <div>{{ form.telefono.label_tag }} {{ form.telefono }}</div>
+  <div>{{ form.direccion.label_tag }} {{ form.direccion }}</div>
+  <button type="submit">Guardar</button>
+  <a href="{% url 'proveedores_list' %}">Cancelar</a>
+</form>
+{% endblock %}

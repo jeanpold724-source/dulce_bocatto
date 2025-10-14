@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Proveedores</h2>
+
+<form method="get" class="mb-3">
+  <input type="text" name="q" value="{{ q }}" placeholder="Buscar por nombre">
+  <button type="submit">Buscar</button>
+  {% if request.user.is_authenticated %}<a href="{% url 'proveedor_create' %}">+ Nuevo</a>{% endif %}
+</form>
+
+<table border="1" cellpadding="6">
+  <thead>
+    <tr><th>ID</th><th>Nombre</th><th>Teléfono</th><th>Dirección</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for p in page.object_list %}
+    <tr>
+      <td>{{ p.id }}</td>
+      <td>{{ p.nombre }}</td>
+      <td>{{ p.telefono }}</td>
+      <td>{{ p.direccion }}</td>
+      <td>
+        <a href="{% url 'proveedor_update' p.id %}">Editar</a>
+        <a href="{% url 'proveedor_delete' p.id %}">Eliminar</a>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5">Sin resultados</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="mt-2">
+  {% if page.has_previous %}<a href="?q={{ q }}&page={{ page.previous_page_number }}">« Anterior</a>{% endif %}
+  <span>Página {{ page.number }} de {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a href="?q={{ q }}&page={{ page.next_page_number }}">Siguiente »</a>{% endif %}
+</div>
+{% endblock %}

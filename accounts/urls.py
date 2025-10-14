@@ -6,6 +6,7 @@ from .views import (
     cancelar_pedido, bitacora_view, confirmar_pedido,
     perfil_editar, cambiar_password, catalogo_view, crear_pedido,
     register_view, CustomLoginView, home_view, perfil_view,
+    proveedores_list, proveedor_create, proveedor_update, proveedor_delete
 )
 
 urlpatterns = [
@@ -32,3 +33,11 @@ router.register(r'api/roles',    accounts_api.RolViewSet)
 router.register(r'api/usuarios', accounts_api.UsuarioViewSet)
 
 urlpatterns += router.urls
+
+
+urlpatterns += [
+    path("proveedores/", proveedores_list, name="proveedores_list"),
+    path("proveedores/nuevo/", proveedor_create, name="proveedor_create"),
+    path("proveedores/<int:pk>/editar/", proveedor_update, name="proveedor_update"),
+    path("proveedores/<int:pk>/eliminar/", proveedor_delete, name="proveedor_delete"),
+]
