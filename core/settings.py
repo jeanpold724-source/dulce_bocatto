@@ -26,8 +26,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
 
-    "accounts.apps.AccountsConfig",
+    'accounts.apps.AccountsConfig', 
+    
 ]
 
 MIDDLEWARE = [
@@ -61,17 +63,21 @@ TEMPLATES = [{
 WSGI_APPLICATION = 'core.wsgi.application'
 
 
-# Database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'dulce_bocatto',
         'USER': 'root',
         'PASSWORD': 'NuevaClave123!',
-        'HOST': 'localhost',
+        'HOST': '127.0.0.1',  # más estable que 'localhost' con MySQL
         'PORT': '3306',
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES', time_zone='-04:00';",
+        },
     }
 }
+
 
 
 # Password validation

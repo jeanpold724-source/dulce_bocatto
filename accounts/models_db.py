@@ -359,13 +359,14 @@ class Rol(models.Model):
 
 
 class RolPermiso(models.Model):
-    pk = models.CompositePrimaryKey('rol_id', 'permiso_id')
-    rol = models.ForeignKey(Rol, models.DO_NOTHING)
-    permiso = models.ForeignKey(Permiso, models.DO_NOTHING)
+    id = models.BigAutoField(primary_key=True)  # <- ahora PK simple
+    rol = models.ForeignKey('Rol', on_delete=models.PROTECT, db_column='rol_id')
+    permiso = models.ForeignKey('Permiso', on_delete=models.PROTECT, db_column='permiso_id')
 
     class Meta:
         managed = False
         db_table = 'rol_permiso'
+        unique_together = (('rol', 'permiso'),)
 
 
 class Sabor(models.Model):
@@ -395,10 +396,11 @@ class Usuario(models.Model):
 
 
 class UsuarioRol(models.Model):
-    pk = models.CompositePrimaryKey('usuario_id', 'rol_id')
-    usuario = models.ForeignKey(Usuario, models.DO_NOTHING)
-    rol = models.ForeignKey(Rol, models.DO_NOTHING)
+    id = models.BigAutoField(primary_key=True)  # <- ahora PK simple
+    usuario = models.ForeignKey('Usuario', on_delete=models.PROTECT, db_column='usuario_id')
+    rol = models.ForeignKey('Rol', on_delete=models.PROTECT, db_column='rol_id')
 
     class Meta:
         managed = False
         db_table = 'usuario_rol'
+        unique_together = (('usuario', 'rol'),)
