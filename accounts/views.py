@@ -517,3 +517,60 @@ def proveedor_delete(request, pk):
         messages.info(request, "Proveedor eliminado.")
         return redirect("proveedores_list")
     return render(request, "accounts/proveedor_confirm_delete.html", {"prov": prov})
+
+
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.db import IntegrityError
+from django.shortcuts import render, redirect, get_object_or_404
+
+from .permissions import requiere_permiso
+from .models_db import Insumo
+from .forms import InsumoForm
+
+@login_required
+@requiere_permiso("INSUMO_READ")
+def insumos_list(request):
+    q = (request.GET.get("q") or "").strip()
+    qs = Insumo.objects.all()
+    if q:
+        qs = qs.filter(Q(nombre__icontains=q) | Q(unidad_medida__icontains=q))
+    page = Paginator(qs, 10).get_page(request.GET.get("page"))
+    return render(request, "accounts/insumos_list.html", {"page": page, "q": q})
+
+@login_required
+@requiere_permiso("INSUMO_WRITE")
+def insumo_create(request):
+    form = InsumoForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Insumo creado.")
+        return redirect("insumos_list")
+    return render(request, "accounts/insumo_form.html", {"form": form, "title": "Nuevo insumo"})
+
+@login_required
+@requiere_permiso("INSUMO_WRITE")
+def insumo_update(request, pk):
+    obj = get_object_or_404(Insumo, pk=pk)
+    form = InsumoForm(request.POST or None, instance=obj)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Insumo actualizado.")
+        return redirect("insumos_list")
+    return render(request, "accounts/insumo_form.html", {"form": form, "title": f"Editar: {obj.nombre}"})
+
+@login_required
+@requiere_permiso("INSUMO_WRITE")
+def insumo_delete(request, pk):
+    obj = get_object_or_404(Insumo, pk=pk)
+    if request.method == "POST":
+        try:
+            obj.delete()  # puede fallar por FK en receta/compra_detalle/kardex
+            messages.success(request, "Insumo eliminado.")
+        except IntegrityError:
+            messages.error(request, "No se puede eliminar: está referenciado en recetas/compras/kardex.")
+        return redirect("insumos_list")
+    return render(request, "accounts/insumo_confirm_delete.html", {"obj": obj})

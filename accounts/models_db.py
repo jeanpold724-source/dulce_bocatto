@@ -234,15 +234,26 @@ class Factura(models.Model):
         db_table = 'factura'
 
 
+
 class Insumo(models.Model):
-    nombre = models.CharField(unique=True, max_length=120)
-    unidad_medida = models.CharField(max_length=4)
-    cantidad_disponible = models.DecimalField(max_digits=12, decimal_places=3)
-    fecha_actualizacion = models.DateTimeField(blank=True, null=True)
+    UNIDADES = (
+        ("kg","kg"),("g","g"),("lt","lt"),("ml","ml"),("und","und"),("bote","bote"),
+    )
+
+    id = models.AutoField(primary_key=True)
+    nombre = models.CharField(max_length=120, unique=True)
+    unidad_medida = models.CharField(max_length=10, choices=UNIDADES)
+    cantidad_disponible = models.DecimalField(max_digits=12, decimal_places=3, default=0)
+    fecha_actualizacion = models.DateTimeField(auto_now=True, editable=False)  # <-- clave
 
     class Meta:
-        managed = False
-        db_table = 'insumo'
+        db_table = "insumo"
+        managed = False              # <- IMPORTANTE: no generar migraciones
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return self.nombre
+
 
 
 class Kardex(models.Model):

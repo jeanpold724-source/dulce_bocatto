@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Eliminar insumo</h2>
+<p>¿Seguro que deseas eliminar <strong>{{ obj }}</strong>?</p>
+<form method="post">
+  {% csrf_token %}
+  <button class="btn btn-danger">Sí, eliminar</button>
+  <a class="btn btn-outline-secondary" href="{% url 'insumos_list' %}">Cancelar</a>
+</form>
+{% endblock %}

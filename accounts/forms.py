@@ -12,3 +12,11 @@ class RegistroForm(UserCreationForm):
 
 class LoginForm(AuthenticationForm):
     username = forms.EmailField(label='Correo electrónico')
+
+
+from .models_db import Insumo
+
+class InsumoForm(forms.ModelForm):
+    class Meta:
+        model = Insumo
+        fields = ["nombre", "unidad_medida", "cantidad_disponible"]
