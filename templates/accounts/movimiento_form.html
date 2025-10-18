@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Nuevo movimiento de inventario</h2>
+<form method="post" class="card p-3">{% csrf_token %}
+  {{ form.as_p }}
+  <div class="mt-2">
+    <button class="btn btn-primary">Guardar</button>
+    <a class="btn btn-outline-secondary" href="{% url 'kardex_list' %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

@@ -50,3 +50,12 @@ router.register(r"api/roles",    accounts_api.RolViewSet)
 router.register(r"api/usuarios", accounts_api.UsuarioViewSet)
 
 urlpatterns += router.urls
+
+
+from . import views_inventario
+
+urlpatterns += [
+    path("inventario/movimiento/", views_inventario.movimiento_crear, name="movimiento_crear"),
+    path("inventario/kardex/", views_inventario.kardex_list, name="kardex_list"),
+    path("inventario/kardex/<int:pk>/", views_inventario.kardex_por_insumo, name="kardex_por_insumo"),
+]

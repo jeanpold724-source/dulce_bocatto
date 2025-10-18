@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Kardex – {{ insumo.nombre }}</h2>
+<p>Stock actual: <b>{{ insumo.cantidad_disponible }}</b> {{ insumo.unidad_medida }}</p>
+
+<div class="table-responsive">
+<table class="table table-bordered align-middle">
+  <thead><tr><th>Fecha</th><th>Tipo</th><th>Motivo</th><th class="text-end">Cantidad</th><th>Obs</th></tr></thead>
+  <tbody>
+    {% for m in page.object_list %}
+      <tr>
+        <td>{{ m.fecha|date:"Y-m-d H:i" }}</td>
+        <td>{{ m.tipo }}</td>
+        <td>{{ m.motivo }}</td>
+        <td class="text-end">{{ m.cantidad }}</td>
+        <td>{{ m.observacion }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5">Sin movimientos.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

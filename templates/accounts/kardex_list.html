@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Kardex</h2>
+
+<form class="row g-2 mb-3">
+  <div class="col-sm-4">
+    <select name="insumo" class="form-select">
+      <option value="">-- Todos los insumos --</option>
+      {% for i in insumos %}
+        <option value="{{ i.id }}" {% if insumo_id|default:'' == i.id|stringformat:"s" %}selected{% endif %}>{{ i.nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto"><button class="btn btn-primary">Filtrar</button></div>
+  <div class="col-auto"><a class="btn btn-outline-success" href="{% url 'movimiento_crear' %}">+ Movimiento</a></div>
+</form>
+
+<div class="table-responsive">
+<table class="table table-bordered align-middle">
+  <thead><tr><th>Fecha</th><th>Insumo</th><th>Tipo</th><th>Motivo</th><th class="text-end">Cantidad</th><th>Obs</th></tr></thead>
+  <tbody>
+    {% for m in page.object_list %}
+      <tr>
+        <td>{{ m.fecha|date:"Y-m-d H:i" }}</td>
+        <td><a href="{% url 'kardex_por_insumo' m.insumo_id %}">{{ m.insumo.nombre }}</a></td>
+        <td>{{ m.tipo }}</td>
+        <td>{{ m.motivo }}</td>
+        <td class="text-end">{{ m.cantidad }}</td>
+        <td>{{ m.observacion }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6">Sin movimientos.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<nav class="mt-3">
+  <ul class="pagination">
+    {% if page.has_previous %}
+      <li class="page-item"><a class="page-link" href="?page={{ page.previous_page_number }}{% if insumo_id %}&insumo={{ insumo_id }}{% endif %}">«</a></li>
+    {% endif %}
+    <li class="page-item disabled"><span class="page-link">Página {{ page.number }} de {{ page.paginator.num_pages }}</span></li>
+    {% if page.has_next %}
+      <li class="page-item"><a class="page-link" href="?page={{ page.next_page_number }}{% if insumo_id %}&insumo={{ insumo_id }}{% endif %}">»</a></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endblock %}
