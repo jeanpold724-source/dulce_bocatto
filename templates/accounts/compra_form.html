@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Nueva compra</h2>
+<form method="post" class="card p-3">{% csrf_token %}
+  <h5>Cabecera</h5>
+  {{ form.as_p }}
+
+  <hr/>
+  <h5>Detalle</h5>
+  {{ formset.management_form }}
+  <table class="table">
+    <thead><tr><th>Insumo</th><th>Cantidad</th><th>Costo unitario</th><th>Eliminar</th></tr></thead>
+    <tbody>
+      {% for f in formset %}
+        <tr>
+          <td>{{ f.insumo }}</td>
+          <td>{{ f.cantidad }}</td>
+          <td>{{ f.costo_unitario }}</td>
+          <td>{{ f.DELETE }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="mt-2">
+    <button class="btn btn-primary">Guardar</button>
+    <a class="btn btn-outline-secondary" href="{% url 'compras_list' %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

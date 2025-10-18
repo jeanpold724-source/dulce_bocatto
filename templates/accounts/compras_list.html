@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Compras</h2>
+<p>
+  <a class="btn btn-primary" href="{% url 'compra_crear' %}">Nueva compra</a>
+</p>
+
+<div class="table-responsive">
+<table class="table table-bordered">
+  <thead>
+    <tr><th>ID</th><th>Proveedor</th><th>Fecha</th><th>Total</th><th>Recepcionada</th><th></th></tr>
+  </thead>
+  <tbody>
+  {% for c in page.object_list %}
+    <tr>
+      <td>#{{ c.id }}</td>
+      <td>
+        {% if c.proveedor %}
+          {{ c.proveedor.nombre }}
+        {% else %}
+          (sin proveedor)
+        {% endif %}
+      </td>
+      <td>{{ c.fecha|date:"Y-m-d H:i" }}</td>
+      <td>{{ c.total }}</td>
+      <td>{% if c.recepcionada %}Sí{% else %}No{% endif %}</td>
+      <td><a class="btn btn-sm btn-outline-secondary" href="{% url 'compra_detalle' c.id %}">Ver</a></td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="6">Sin compras.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

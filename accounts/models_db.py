@@ -116,27 +116,39 @@ class Cliente(models.Model):
         db_table = 'cliente'
 
 
+# accounts/models_db.py
+
 class Compra(models.Model):
-    proveedor = models.ForeignKey('Proveedor', models.DO_NOTHING)
+    id = models.AutoField(primary_key=True)
+    proveedor = models.ForeignKey("Proveedor", models.DO_NOTHING, db_column="proveedor_id")
     fecha = models.DateTimeField(blank=True, null=True)
     total = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
 
+    # 👇 agrega estos dos campos para que coincidan con tu tabla
+    recepcionada = models.BooleanField(default=False)          # TINYINT(1) en MySQL
+    fecha_recepcion = models.DateTimeField(blank=True, null=True)
+
     class Meta:
         managed = False
-        db_table = 'compra'
+        db_table = "compra"
+
 
 
 class CompraDetalle(models.Model):
-    pk = models.CompositePrimaryKey('compra_id', 'insumo_id')
-    compra = models.ForeignKey(Compra, models.DO_NOTHING)
-    insumo = models.ForeignKey('Insumo', models.DO_NOTHING)
+    id = models.BigAutoField(primary_key=True)
+    compra = models.ForeignKey(Compra, models.DO_NOTHING, db_column="compra_id")
+    insumo = models.ForeignKey("Insumo", models.DO_NOTHING, db_column="insumo_id")  # <- comillas
     cantidad = models.DecimalField(max_digits=12, decimal_places=3)
     costo_unitario = models.DecimalField(max_digits=12, decimal_places=2)
-    subtotal = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    # NO declares 'subtotal'
 
     class Meta:
         managed = False
-        db_table = 'compra_detalle'
+        db_table = "compra_detalle"
+        unique_together = (("compra", "insumo"),)
+
+
+
 
 
 class Descuento(models.Model):
@@ -348,6 +360,11 @@ class Proveedor(models.Model):
     class Meta:
         managed = False
         db_table = 'proveedor'
+        ordering = ['nombre']  # opcional: orden alfabético en el combo
+
+    def __str__(self):
+        return self.nombre
+
 
 
 class Receta(models.Model):

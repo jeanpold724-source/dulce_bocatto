@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Compra #{{ compra.id }}</h2>
+<p>
+  Proveedor:
+  <b>
+    {% if compra.proveedor %}
+      {{ compra.proveedor.nombre }}
+    {% else %}
+      (sin proveedor)
+    {% endif %}
+  </b> |
+  Fecha: {{ compra.fecha|date:"Y-m-d H:i" }} |
+  Total: <b>{{ compra.total }}</b> |
+  Estado:
+  {% if compra.recepcionada %}
+    <span class="badge bg-success">Recepcionada</span>
+  {% else %}
+    <span class="badge bg-warning text-dark">Pendiente</span>
+  {% endif %}
+</p>
+
+{% if not compra.recepcionada %}
+  <p>
+    <a class="btn btn-success" href="{% url 'compra_recepcionar' compra.id %}">Recepcionar</a>
+  </p>
+{% endif %}
+
+<div class="table-responsive">
+  <table class="table table-bordered">
+    <thead>
+      <tr><th>Insumo</th><th>Cantidad</th><th>Costo</th><th>Subtotal</th></tr>
+    </thead>
+    <tbody>
+      {% for d in detalles %}
+        <tr>
+          <td>{{ d.insumo.nombre }}</td>
+          <td>{{ d.cantidad }}</td>
+          <td>{{ d.costo_unitario }}</td>
+          <td>{{ d.subtotal_calc }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">Sin detalle.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p>
+  <a class="btn btn-outline-secondary" href="{% url 'compras_list' %}">Volver</a>
+</p>
+{% endblock %}

@@ -59,3 +59,14 @@ urlpatterns += [
     path("inventario/kardex/", views_inventario.kardex_list, name="kardex_list"),
     path("inventario/kardex/<int:pk>/", views_inventario.kardex_por_insumo, name="kardex_por_insumo"),
 ]
+
+
+from . import views_compras
+
+urlpatterns += [
+    # CU14
+    path("compras/", views_compras.compras_list, name="compras_list"),
+    path("compras/nueva/", views_compras.compra_crear, name="compra_crear"),
+    path("compras/<int:compra_id>/", views_compras.compra_detalle, name="compra_detalle"),
+    path("compras/<int:compra_id>/recepcionar/", views_compras.compra_recepcionar, name="compra_recepcionar"),
+]
