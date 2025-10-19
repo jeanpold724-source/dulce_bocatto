@@ -1,13 +1,10 @@
-# This is an auto-generated Django model module.
-# You'll have to do the following manually to clean this up:
-#   * Rearrange models' order
-#   * Make sure each model has one field with primary_key=True
-#   * Make sure each ForeignKey and OneToOneField has `on_delete` set to the desired behavior
-#   * Remove `managed = False` lines if you wish to allow Django to create, modify, and delete the table
-# Feel free to rename the models, but don't rename db_table values or field names.
+# accounts/models_db.py
 from django.db import models
 
 
+# ============================
+# Tablas del admin de Django (solo lectura)
+# ============================
 
 class AccountsUser(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -27,27 +24,18 @@ class AccountsUser(models.Model):
         managed = False
         db_table = 'accounts_user'
 
-
-class AccountsUserGroups(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    user = models.ForeignKey(AccountsUser, models.DO_NOTHING)
-    group = models.ForeignKey('AuthGroup', models.DO_NOTHING)
-
-    class Meta:
-        managed = False
-        db_table = 'accounts_user_groups'
-        unique_together = (('user', 'group'),)
+    def __str__(self):
+        return self.username
 
 
-class AccountsUserUserPermissions(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    user = models.ForeignKey(AccountsUser, models.DO_NOTHING)
-    permission = models.ForeignKey('AuthPermission', models.DO_NOTHING)
+class DjangoContentType(models.Model):
+    app_label = models.CharField(max_length=100)
+    model = models.CharField(max_length=100)
 
     class Meta:
         managed = False
-        db_table = 'accounts_user_user_permissions'
-        unique_together = (('user', 'permission'),)
+        db_table = 'django_content_type'
+        unique_together = (('app_label', 'model'),)
 
 
 class AuthGroup(models.Model):
@@ -57,16 +45,8 @@ class AuthGroup(models.Model):
         managed = False
         db_table = 'auth_group'
 
-
-class AuthGroupPermissions(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    group = models.ForeignKey(AuthGroup, models.DO_NOTHING)
-    permission = models.ForeignKey('AuthPermission', models.DO_NOTHING)
-
-    class Meta:
-        managed = False
-        db_table = 'auth_group_permissions'
-        unique_together = (('group', 'permission'),)
+    def __str__(self):
+        return self.name
 
 
 class AuthPermission(models.Model):
@@ -79,102 +59,41 @@ class AuthPermission(models.Model):
         db_table = 'auth_permission'
         unique_together = (('content_type', 'codename'),)
 
-
-class Bitacora(models.Model):
-    usuario = models.ForeignKey('Usuario', models.DO_NOTHING)
-    entidad = models.CharField(max_length=60)
-    entidad_id = models.IntegerField()
-    accion = models.CharField(max_length=50)
-    ip = models.CharField(max_length=64, blank=True, null=True)
-    fecha = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'bitacora'
+    def __str__(self):
+        return self.codename
 
 
-class Calificacion(models.Model):
-    pedido = models.OneToOneField('Pedido', models.DO_NOTHING)
-    puntaje = models.IntegerField()
-    comentario = models.CharField(max_length=300, blank=True, null=True)
-    fecha = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'calificacion'
-
-
-class Cliente(models.Model):
-    usuario = models.OneToOneField('Usuario', models.DO_NOTHING)
-    nombre = models.CharField(max_length=120)
-    telefono = models.CharField(max_length=40, blank=True, null=True)
-    direccion = models.CharField(max_length=200)
-    created_at = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'cliente'
-
-
-# accounts/models_db.py
-
-class Compra(models.Model):
-    id = models.AutoField(primary_key=True)
-    proveedor = models.ForeignKey("Proveedor", models.DO_NOTHING, db_column="proveedor_id")
-    fecha = models.DateTimeField(blank=True, null=True)
-    total = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
-    
-    # 🔽 Agrega estos dos campos exactamente así
-    recepcionada = models.BooleanField(default=False)
-    fecha_recepcion = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'compra'
-
-
-
-
-class CompraDetalle(models.Model):
+class AuthGroupPermissions(models.Model):
     id = models.BigAutoField(primary_key=True)
-    compra = models.ForeignKey(Compra, models.DO_NOTHING, db_column="compra_id")
-    insumo = models.ForeignKey("Insumo", models.DO_NOTHING, db_column="insumo_id")  # <- comillas
-    cantidad = models.DecimalField(max_digits=12, decimal_places=3)
-    costo_unitario = models.DecimalField(max_digits=12, decimal_places=2)
-    # NO declares 'subtotal'
+    group = models.ForeignKey(AuthGroup, models.DO_NOTHING)
+    permission = models.ForeignKey(AuthPermission, models.DO_NOTHING)
 
     class Meta:
         managed = False
-        db_table = "compra_detalle"
-        unique_together = (("compra", "insumo"),)
+        db_table = 'auth_group_permissions'
+        unique_together = (('group', 'permission'),)
 
 
-
-
-
-class Descuento(models.Model):
-    nombre = models.CharField(max_length=120)
-    tipo = models.CharField(max_length=10)
-    valor = models.DecimalField(max_digits=12, decimal_places=2)
-    activo = models.IntegerField(blank=True, null=True)
+class AccountsUserGroups(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey(AccountsUser, models.DO_NOTHING)
+    group = models.ForeignKey(AuthGroup, models.DO_NOTHING)
 
     class Meta:
         managed = False
-        db_table = 'descuento'
+        db_table = 'accounts_user_groups'
+        unique_together = (('user', 'group'),)
 
 
-#class DetallePedido(models.Model):
-#    pk = models.CompositePrimaryKey('pedido_id', 'producto_id', 'sabor_id')
- #   pedido = models.ForeignKey('Pedido', models.DO_NOTHING)
-  #  producto = models.ForeignKey('ProductoSabor', models.DO_NOTHING)
-   # sabor = models.ForeignKey('ProductoSabor', models.DO_NOTHING, to_field='sabor_id', related_name='detallepedido_sabor_set')
-    #cantidad = models.IntegerField()
-    #precio_unitario = models.DecimalField(max_digits=12, decimal_places=2)
-    #sub_total = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+class AccountsUserUserPermissions(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey(AccountsUser, models.DO_NOTHING)
+    permission = models.ForeignKey(AuthPermission, models.DO_NOTHING)
 
-    #class Meta:
-     #   managed = False
-      #  db_table = 'detalle_pedido'
+    class Meta:
+        managed = False
+        db_table = 'accounts_user_user_permissions'
+        unique_together = (('user', 'permission'),)
 
 
 class DjangoAdminLog(models.Model):
@@ -189,16 +108,6 @@ class DjangoAdminLog(models.Model):
     class Meta:
         managed = False
         db_table = 'django_admin_log'
-
-
-class DjangoContentType(models.Model):
-    app_label = models.CharField(max_length=100)
-    model = models.CharField(max_length=100)
-
-    class Meta:
-        managed = False
-        db_table = 'django_content_type'
-        unique_together = (('app_label', 'model'),)
 
 
 class DjangoMigrations(models.Model):
@@ -222,103 +131,35 @@ class DjangoSession(models.Model):
         db_table = 'django_session'
 
 
-class Envio(models.Model):
-    pedido = models.OneToOneField('Pedido', models.DO_NOTHING)
-    estado = models.CharField(max_length=9, blank=True, null=True)
-    nombre_repartidor = models.CharField(max_length=120, blank=True, null=True)
-    telefono_repartidor = models.CharField(max_length=40, blank=True, null=True)
+# ============================
+# Seguridad propia (usuarios/roles/permisos)
+# ============================
+
+class Usuario(models.Model):
+    nombre = models.CharField(max_length=120)
+    email = models.CharField(unique=True, max_length=160)
+    hash_password = models.CharField(max_length=200)
+    telefono = models.CharField(max_length=40, blank=True, null=True)
+    activo = models.IntegerField()
     created_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
-        db_table = 'envio'
+        db_table = 'usuario'
+
+    def __str__(self):
+        return f"{self.nombre} <{self.email}>"
 
 
-class Factura(models.Model):
-    pedido = models.OneToOneField('Pedido', models.DO_NOTHING)
-    nro = models.CharField(unique=True, max_length=60)
-    fecha = models.DateTimeField(blank=True, null=True)
-    nit_cliente = models.CharField(max_length=60)
-    razon_social = models.CharField(max_length=200)
-    total = models.DecimalField(max_digits=12, decimal_places=2)
+class Rol(models.Model):
+    nombre = models.CharField(unique=True, max_length=80)
 
     class Meta:
         managed = False
-        db_table = 'factura'
-
-
-
-class Insumo(models.Model):
-    UNIDADES = (
-        ("kg","kg"),("g","g"),("lt","lt"),("ml","ml"),("und","und"),("bote","bote"),
-    )
-
-    id = models.AutoField(primary_key=True)
-    nombre = models.CharField(max_length=120, unique=True)
-    unidad_medida = models.CharField(max_length=10, choices=UNIDADES)
-    cantidad_disponible = models.DecimalField(max_digits=12, decimal_places=3, default=0)
-    fecha_actualizacion = models.DateTimeField(auto_now=True, editable=False)  # <-- clave
-
-    class Meta:
-        db_table = "insumo"
-        managed = False              # <- IMPORTANTE: no generar migraciones
-        ordering = ["nombre"]
+        db_table = 'rol'
 
     def __str__(self):
         return self.nombre
-
-
-
-class Kardex(models.Model):
-    insumo = models.ForeignKey(Insumo, models.DO_NOTHING)
-    fecha = models.DateTimeField(blank=True, null=True)
-    tipo = models.CharField(max_length=7)
-    motivo = models.CharField(max_length=7)
-    cantidad = models.DecimalField(max_digits=12, decimal_places=3)
-    observacion = models.CharField(max_length=200, blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'kardex'
-
-
-class Pago(models.Model):
-    pedido = models.OneToOneField('Pedido', models.DO_NOTHING)
-    metodo = models.CharField(max_length=13)
-    monto = models.DecimalField(max_digits=12, decimal_places=2)
-    referencia = models.CharField(max_length=120, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'pago'
-
-
-class Pedido(models.Model):
-    cliente = models.ForeignKey(Cliente, models.DO_NOTHING)
-    estado = models.CharField(max_length=10, blank=True, null=True)
-    metodo_envio = models.CharField(max_length=20)
-    costo_envio = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
-    direccion_entrega = models.CharField(max_length=200, blank=True, null=True)
-    total = models.DecimalField(max_digits=12, decimal_places=2)
-    observaciones = models.CharField(max_length=300, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    fecha_entrega_programada = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'pedido'
-
-
-class PedidoDescuento(models.Model):
-    pk = models.CompositePrimaryKey('pedido_id', 'descuento_id')
-    pedido = models.ForeignKey(Pedido, models.DO_NOTHING)
-    descuento = models.ForeignKey(Descuento, models.DO_NOTHING)
-    monto_aplicado = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'pedido_descuento'
 
 
 class Permiso(models.Model):
@@ -328,6 +169,72 @@ class Permiso(models.Model):
     class Meta:
         managed = False
         db_table = 'permiso'
+
+    def __str__(self):
+        return self.codigo
+
+
+class UsuarioRol(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    usuario = models.ForeignKey('Usuario', on_delete=models.PROTECT, db_column='usuario_id')
+    rol = models.ForeignKey('Rol', on_delete=models.PROTECT, db_column='rol_id')
+
+    class Meta:
+        managed = False
+        db_table = 'usuario_rol'
+        unique_together = (('usuario', 'rol'),)
+
+    def __str__(self):
+        return f"{self.usuario} → {self.rol}"
+
+
+class RolPermiso(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    rol = models.ForeignKey('Rol', on_delete=models.PROTECT, db_column='rol_id')
+    permiso = models.ForeignKey('Permiso', on_delete=models.PROTECT, db_column='permiso_id')
+
+    class Meta:
+        managed = False
+        db_table = 'rol_permiso'
+        unique_together = (('rol', 'permiso'),)
+
+    def __str__(self):
+        return f"{self.rol} → {self.permiso}"
+
+
+class Bitacora(models.Model):
+    usuario = models.ForeignKey('Usuario', models.DO_NOTHING)
+    entidad = models.CharField(max_length=60)
+    entidad_id = models.IntegerField()
+    accion = models.CharField(max_length=50)
+    ip = models.CharField(max_length=64, blank=True, null=True)
+    fecha = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'bitacora'
+
+    def __str__(self):
+        return f"[{self.fecha}] {self.usuario} {self.accion} {self.entidad}({self.entidad_id})"
+
+
+# ============================
+# Clientes & Ventas
+# ============================
+
+class Cliente(models.Model):
+    usuario = models.OneToOneField('Usuario', models.DO_NOTHING)
+    nombre = models.CharField(max_length=120)
+    telefono = models.CharField(max_length=40, blank=True, null=True)
+    direccion = models.CharField(max_length=200)
+    created_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'cliente'
+
+    def __str__(self):
+        return self.nombre
 
 
 class Producto(models.Model):
@@ -342,16 +249,182 @@ class Producto(models.Model):
         managed = False
         db_table = 'producto'
 
+    def __str__(self):
+        return self.nombre
+
+
+class Sabor(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    nombre = models.CharField(max_length=100)
+    activo = models.IntegerField()
+    imagen = models.CharField(max_length=200, blank=True, null=True, db_column='imagen')
+
+    class Meta:
+        managed = False
+        db_table = 'sabor'
+
+    def __str__(self):
+        return self.nombre
+
 
 class ProductoSabor(models.Model):
-    pk = models.CompositePrimaryKey('producto_id', 'sabor_id')
-    producto = models.ForeignKey(Producto, models.DO_NOTHING)
-    sabor = models.ForeignKey('Sabor', models.DO_NOTHING)
+    id = models.BigAutoField(primary_key=True)
+    producto = models.ForeignKey(Producto, models.DO_NOTHING, db_column='producto_id')
+    sabor = models.ForeignKey(Sabor, models.DO_NOTHING, db_column='sabor_id')
 
     class Meta:
         managed = False
         db_table = 'producto_sabor'
+        unique_together = (('producto', 'sabor'),)
 
+    def __str__(self):
+        return f"{self.producto} - {self.sabor}"
+
+
+class Descuento(models.Model):
+    nombre = models.CharField(max_length=120)
+    tipo = models.CharField(max_length=10)  # 'FIJO' | 'PORCENTAJE'
+    valor = models.DecimalField(max_digits=12, decimal_places=2)
+    activo = models.IntegerField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'descuento'
+
+    def __str__(self):
+        return f"{self.nombre} ({self.tipo})"
+
+
+class Pedido(models.Model):
+    id = models.AutoField(primary_key=True)
+    cliente = models.ForeignKey(Cliente, models.DO_NOTHING, db_column='cliente_id')
+    estado = models.CharField(max_length=10, blank=True, null=True)  # PENDIENTE/CONFIRMADO/ENTREGADO/CANCELADO
+    metodo_envio = models.CharField(max_length=20)  # RETIRO/DELIVERY
+    costo_envio = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    direccion_entrega = models.CharField(max_length=200, blank=True, null=True)
+    total = models.DecimalField(max_digits=12, decimal_places=2)
+    observaciones = models.CharField(max_length=300, blank=True, null=True)
+    created_at = models.DateTimeField(blank=True, null=True)
+    fecha_entrega_programada = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'pedido'
+
+    def __str__(self):
+        return f"Pedido #{self.id} ({self.estado})"
+
+
+class PedidoDescuento(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    pedido = models.ForeignKey(Pedido, models.DO_NOTHING, db_column='pedido_id')
+    descuento = models.ForeignKey(Descuento, models.DO_NOTHING, db_column='descuento_id')
+    monto_aplicado = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'pedido_descuento'
+        unique_together = (('pedido', 'descuento'),)
+
+
+class Pago(models.Model):
+    pedido = models.OneToOneField(Pedido, models.DO_NOTHING)
+    metodo = models.CharField(max_length=13)  # EFECTIVO/QR/TRANSFERENCIA
+    monto = models.DecimalField(max_digits=12, decimal_places=2)
+    referencia = models.CharField(max_length=120, blank=True, null=True)
+    created_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'pago'
+
+
+class Envio(models.Model):
+    pedido = models.OneToOneField(Pedido, models.DO_NOTHING)
+    estado = models.CharField(max_length=9, blank=True, null=True)  # PENDIENTE/ENTREGADO
+    nombre_repartidor = models.CharField(max_length=120, blank=True, null=True)
+    telefono_repartidor = models.CharField(max_length=40, blank=True, null=True)
+    created_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'envio'
+
+
+class Factura(models.Model):
+    pedido = models.OneToOneField(Pedido, models.DO_NOTHING)
+    nro = models.CharField(unique=True, max_length=60)
+    fecha = models.DateTimeField(blank=True, null=True)
+    nit_cliente = models.CharField(max_length=60)
+    razon_social = models.CharField(max_length=200)
+    total = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        managed = False
+        db_table = 'factura'
+
+
+class Calificacion(models.Model):
+    pedido = models.OneToOneField(Pedido, models.DO_NOTHING)
+    puntaje = models.IntegerField()
+    comentario = models.CharField(max_length=300, blank=True, null=True)
+    fecha = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'calificacion'
+
+
+# ============================
+# Producción & Almacén
+# ============================
+
+class Insumo(models.Model):
+    UNIDADES = (("kg", "kg"), ("g", "g"), ("lt", "lt"), ("ml", "ml"), ("und", "und"), ("bote", "bote"))
+
+    id = models.AutoField(primary_key=True)
+    nombre = models.CharField(max_length=120, unique=True)
+    unidad_medida = models.CharField(max_length=10, choices=UNIDADES)
+    cantidad_disponible = models.DecimalField(max_digits=12, decimal_places=3, default=0)
+    fecha_actualizacion = models.DateTimeField(auto_now=True, editable=False)
+
+    class Meta:
+        db_table = 'insumo'
+        managed = False
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
+
+class Kardex(models.Model):
+    insumo = models.ForeignKey(Insumo, models.DO_NOTHING)
+    fecha = models.DateTimeField(blank=True, null=True)
+    tipo = models.CharField(max_length=7)    # ENTRADA/SALIDA/AJUSTE
+    motivo = models.CharField(max_length=7)  # COMPRA/CONSUMO/AJUSTE
+    cantidad = models.DecimalField(max_digits=12, decimal_places=3)
+    observacion = models.CharField(max_length=200, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'kardex'
+
+
+class Receta(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    producto = models.ForeignKey(Producto, models.DO_NOTHING, db_column='producto_id')
+    insumo = models.ForeignKey(Insumo, models.DO_NOTHING, db_column='insumo_id')
+    cantidad = models.DecimalField(max_digits=12, decimal_places=3)
+
+    class Meta:
+        managed = False
+        db_table = 'receta'
+        unique_together = (('producto', 'insumo'),)
+
+
+# ============================
+# Compras & Proveedores
+# ============================
 
 class Proveedor(models.Model):
     nombre = models.CharField(max_length=150)
@@ -361,75 +434,41 @@ class Proveedor(models.Model):
     class Meta:
         managed = False
         db_table = 'proveedor'
-        ordering = ['nombre']  # opcional: orden alfabético en el combo
+        ordering = ['nombre']
 
     def __str__(self):
         return self.nombre
 
 
-
-class Receta(models.Model):
-    pk = models.CompositePrimaryKey('producto_id', 'insumo_id')
-    producto = models.ForeignKey(Producto, models.DO_NOTHING)
-    insumo = models.ForeignKey(Insumo, models.DO_NOTHING)
-    cantidad = models.DecimalField(max_digits=12, decimal_places=3)
-
-    class Meta:
-        managed = False
-        db_table = 'receta'
-
-
-class Rol(models.Model):
-    nombre = models.CharField(unique=True, max_length=80)
+class Compra(models.Model):
+    id = models.AutoField(primary_key=True)
+    proveedor = models.ForeignKey(Proveedor, models.DO_NOTHING, db_column='proveedor_id')
+    fecha = models.DateTimeField(blank=True, null=True)
+    total = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    # Flags CU14:
+    recepcionada = models.BooleanField(default=False)
+    fecha_recepcion = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
-        db_table = 'rol'
+        db_table = 'compra'
+
+    def __str__(self):
+        return f"Compra #{self.id} - {self.proveedor}"
 
 
-class RolPermiso(models.Model):
-    id = models.BigAutoField(primary_key=True)  # <- ahora PK simple
-    rol = models.ForeignKey('Rol', on_delete=models.PROTECT, db_column='rol_id')
-    permiso = models.ForeignKey('Permiso', on_delete=models.PROTECT, db_column='permiso_id')
-
-    class Meta:
-        managed = False
-        db_table = 'rol_permiso'
-        unique_together = (('rol', 'permiso'),)
-
-
-class Sabor(models.Model):
+class CompraDetalle(models.Model):
     id = models.BigAutoField(primary_key=True)
-    nombre = models.CharField(max_length=100)
-    activo = models.IntegerField()
-    imagen = models.CharField(
-        max_length=200, blank=True, null=True, db_column="imagen"
-    )  # <<-- NUEVO
+    compra = models.ForeignKey(Compra, models.DO_NOTHING, db_column='compra_id')
+    insumo = models.ForeignKey(Insumo, models.DO_NOTHING, db_column='insumo_id')
+    cantidad = models.DecimalField(max_digits=12, decimal_places=3)
+    costo_unitario = models.DecimalField(max_digits=12, decimal_places=2)
+    # No declarar 'subtotal' (columna generada en MySQL)
 
     class Meta:
         managed = False
-        db_table = 'sabor'
+        db_table = 'compra_detalle'
+        unique_together = (('compra', 'insumo'),)
 
-
-class Usuario(models.Model):
-    nombre = models.CharField(max_length=120)
-    email = models.CharField(unique=True, max_length=160)
-    hash_password = models.CharField(max_length=200)
-    telefono = models.CharField(max_length=40, blank=True, null=True)
-    activo = models.IntegerField()
-    created_at = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'usuario'
-
-
-class UsuarioRol(models.Model):
-    id = models.BigAutoField(primary_key=True)  # <- ahora PK simple
-    usuario = models.ForeignKey('Usuario', on_delete=models.PROTECT, db_column='usuario_id')
-    rol = models.ForeignKey('Rol', on_delete=models.PROTECT, db_column='rol_id')
-
-    class Meta:
-        managed = False
-        db_table = 'usuario_rol'
-        unique_together = (('usuario', 'rol'),)
+    def __str__(self):
+        return f"{self.compra} · {self.insumo} · {self.cantidad}"

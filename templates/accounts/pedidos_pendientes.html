@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Pedidos pendientes</h2>
+<table class="table">
+  <thead>
+    <tr>
+      <th>#</th><th>Cliente</th><th>Creado</th><th>Total</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in pedidos %}
+      <tr>
+        <td>#{{ p.id }}</td>
+        <td>{{ p.cliente.nombre }}</td>
+        <td>{{ p.created_at|date:"Y-m-d H:i" }}</td>
+        <td>{{ p.total }}</td>
+        <td>
+          <a class="btn btn-sm btn-primary" href="{% url 'pedido_detalle' p.id %}">Ver</a>
+          <a class="btn btn-sm btn-warning" href="{% url 'pedido_editar' p.id %}">Editar</a>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5">No hay pedidos pendientes.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

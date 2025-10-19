@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Pedido #{{ pedido.id }}</h2>
+<p>Estado: <b>{{ pedido.estado }}</b> — Total: <b>{{ pedido.total }}</b></p>
+<p>Cliente: {{ pedido.cliente.nombre }}</p>
+<a class="btn btn-warning" href="{% url 'pedido_editar' pedido.id %}">Editar detalle</a>
+<hr>
+<table class="table">
+  <thead>
+    <tr>
+      <th>Producto</th><th>Sabor</th><th>Cantidad</th><th>PU</th><th>Subtotal</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for d in detalle %}
+      <tr>
+        <td>{{ d.producto }}</td>
+        <td>{{ d.sabor }}</td>
+        <td>{{ d.cantidad }}</td>
+        <td>{{ d.precio_unitario }}</td>
+        <td>{{ d.sub_total }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5">Sin detalle aún.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<a class="btn btn-secondary" href="{% url 'pedidos_pendientes' %}">Volver</a>
+{% endblock %}

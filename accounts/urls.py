@@ -70,3 +70,13 @@ urlpatterns += [
     path("compras/<int:compra_id>/", views_compras.compra_detalle, name="compra_detalle"),
     path("compras/<int:compra_id>/recepcionar/", views_compras.compra_recepcionar, name="compra_recepcionar"),
 ]
+
+
+# accounts/urls.py
+from . import views_pedidos
+
+urlpatterns += [
+    path("pedidos/", views_pedidos.pedidos_pendientes, name="pedidos_pendientes"),
+    path("pedidos/<int:pedido_id>/", views_pedidos.pedido_detalle, name="pedido_detalle"),
+    path("pedidos/<int:pedido_id>/editar/", views_pedidos.pedido_editar, name="pedido_editar"),
+]
