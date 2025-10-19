@@ -123,14 +123,15 @@ class Compra(models.Model):
     proveedor = models.ForeignKey("Proveedor", models.DO_NOTHING, db_column="proveedor_id")
     fecha = models.DateTimeField(blank=True, null=True)
     total = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
-
-    # 👇 agrega estos dos campos para que coincidan con tu tabla
-    recepcionada = models.BooleanField(default=False)          # TINYINT(1) en MySQL
+    
+    # 🔽 Agrega estos dos campos exactamente así
+    recepcionada = models.BooleanField(default=False)
     fecha_recepcion = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
-        db_table = "compra"
+        db_table = 'compra'
+
 
 
 
