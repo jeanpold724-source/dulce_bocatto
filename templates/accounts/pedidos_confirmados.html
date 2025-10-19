@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Pedidos confirmados</h2>
+
+<form class="row g-2 mb-3" method="get">
+  <div class="col-auto">
+    <input name="q" value="{{ q }}" class="form-control" placeholder="Buscar por #id o cliente…">
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-outline-primary" type="submit">Buscar</button>
+  </div>
+  <div class="col-auto">
+    <a href="{% url 'pedidos_confirmados' %}" class="btn btn-outline-secondary">Limpiar</a>
+  </div>
+</form>
+
+{% if pedidos %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Cliente</th>
+          <th>Creado</th>
+          <th>Total (Bs.)</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pedidos %}
+        <tr>
+          <td>{{ p.id }}</td>
+          <td>{{ p.cliente.nombre }}</td>
+          <td>{{ p.created_at|date:"Y-m-d H:i" }}</td>
+          <td>{{ p.total }}</td>
+          <td>
+            {% with e=p.estado %}
+              {% if e == "CONFIRMADO" %}
+                <span class="badge text-bg-info">Confirmado</span>
+              {% elif e == "EN_PRODUCCION" %}
+                <span class="badge text-bg-warning">En producción</span>
+              {% elif e == "LISTO_ENTREGA" %}
+                <span class="badge text-bg-primary">Listo para entrega</span>
+              {% elif e == "ENTREGADO" %}
+                <span class="badge text-bg-success">Entregado</span>
+              {% else %}
+                <span class="badge text-bg-secondary">{{ e }}</span>
+              {% endif %}
+            {% endwith %}
+          </td>
+          <td class="text-end">
+            <a href="{% url 'pedido_detalle' p.id %}" class="btn btn-sm btn-outline-secondary">Ver</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="alert alert-info mb-0">
+    No hay pedidos registrados en estado confirmado / producción / listo_entrega / entregado.
+  </div>
+{% endif %}
+{% endblock %}

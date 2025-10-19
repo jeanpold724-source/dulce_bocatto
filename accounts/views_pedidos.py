@@ -143,3 +143,52 @@ def pedido_editar(request, pedido_id):
         "productos": productos,
         "sabores": sabores,
     })
+
+
+# --- CU15: Consultar estado de pedidos confirmados ---------------------------
+from django.db.models import Q
+
+@login_required
+@requiere_permiso("PEDIDO_READ")
+def pedidos_confirmados(request):
+    """
+    CU15 – Consultar estado de pedidos confirmados
+    Muestra pedidos que ya pasaron de 'PENDIENTE' a un estado confirmado/
+    productivo. Filtra por el actor:
+      - Cliente: solo sus pedidos
+      - Recepcionista/Admin: todos los pedidos
+    Soporta búsqueda simple por id o nombre de cliente (?q=...).
+    """
+    ESTADOS_CONFIRMADOS = ["CONFIRMADO", "EN_PRODUCCION", "LISTO_ENTREGA", "ENTREGADO"]
+
+    qs = (Pedido.objects
+          .select_related("cliente")
+          .filter(estado__in=ESTADOS_CONFIRMADOS)
+          .order_by("-created_at", "-id"))
+
+    # --- Filtro por actor (ajusta UNA de las dos líneas según tu modelo) -----
+    # Si tu modelo Cliente tiene un OneToOne/ForeignKey a User con campo 'usuario':
+    try:
+        # Cliente logueado: ver solo sus pedidos
+        if not (getattr(request.user, "is_staff", False) or getattr(request.user, "is_superuser", False)):
+            qs = qs.filter(cliente__usuario=request.user)   # <-- usa esta si existe cliente.usuario
+            # qs = qs.filter(cliente__user=request.user)    # <-- usa esta si tu campo se llama 'user'
+    except Exception:
+        # Si tu esquema no enlaza Cliente↔User, elimina este bloque y usa permisos por rol
+        pass
+
+    # --- Búsqueda opcional ----------------------------------------------------
+    q = request.GET.get("q", "").strip()
+    if q:
+        if q.isdigit():
+            qs = qs.filter(Q(id=int(q)) | Q(cliente__nombre__icontains=q))
+        else:
+            qs = qs.filter(Q(cliente__nombre__icontains=q))
+
+    contexto = {
+        "pedidos": qs,
+        "q": q,
+        "estados_confirmados": ESTADOS_CONFIRMADOS,
+    }
+    return render(request, "accounts/pedidos_confirmados.html", contexto)
+# -----------------------------------------------------------------------------

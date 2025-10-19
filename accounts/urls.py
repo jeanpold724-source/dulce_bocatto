@@ -51,7 +51,7 @@ router.register(r"api/usuarios", accounts_api.UsuarioViewSet)
 
 urlpatterns += router.urls
 
-
+# --- Inventario ---
 from . import views_inventario
 
 urlpatterns += [
@@ -60,7 +60,7 @@ urlpatterns += [
     path("inventario/kardex/<int:pk>/", views_inventario.kardex_por_insumo, name="kardex_por_insumo"),
 ]
 
-
+# --- Compras ---
 from . import views_compras
 
 urlpatterns += [
@@ -71,12 +71,14 @@ urlpatterns += [
     path("compras/<int:compra_id>/recepcionar/", views_compras.compra_recepcionar, name="compra_recepcionar"),
 ]
 
-
-# accounts/urls.py
+# --- Pedidos ---
 from . import views_pedidos
 
 urlpatterns += [
     path("pedidos/", views_pedidos.pedidos_pendientes, name="pedidos_pendientes"),
     path("pedidos/<int:pedido_id>/", views_pedidos.pedido_detalle, name="pedido_detalle"),
     path("pedidos/<int:pedido_id>/editar/", views_pedidos.pedido_editar, name="pedido_editar"),
+
+    # ✅ CU15: Pedidos confirmados
+    path("pedidos/confirmados/", views_pedidos.pedidos_confirmados, name="pedidos_confirmados"),
 ]

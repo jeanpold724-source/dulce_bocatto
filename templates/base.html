@@ -78,6 +78,14 @@
         {% if user.is_authenticated %}
           <a class="btn btn-sm btn-outline-light me-2" href="{% url 'catalogo' %}">Catálogo</a>
           <a class="btn btn-sm btn-outline-light me-2" href="{% url 'perfil' %}">Perfil</a>
+
+          <!-- CU15: Pedidos confirmados -->
+          <a class="btn btn-sm btn-outline-light me-2" href="{% url 'pedidos_confirmados' %}">
+            Pedidos confirmados
+          </a>
+
+          <a class="btn btn-sm btn-outline-light me-2" href="{% url 'compras_list' %}">Compras</a>
+
           <form action="{% url 'logout' %}" method="post" class="d-inline">
             {% csrf_token %}
             <button class="btn btn-sm btn-outline-light">Salir</button>
@@ -86,7 +94,6 @@
           <a class="btn btn-sm btn-outline-light me-2" href="{% url 'login' %}">Iniciar sesión</a>
           <a class="btn btn-sm btn-outline-light" href="{% url 'register' %}">Regístrate</a>
         {% endif %}
-          <a class="btn btn-outline-light" href="{% url 'compras_list' %}">Compras</a>
       </div>
     </div>
   </nav>
