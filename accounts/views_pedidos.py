@@ -59,11 +59,29 @@ def pedidos_pendientes(request):
 @requiere_permiso("PEDIDO_READ")
 def pedido_detalle(request, pedido_id):
     pedido = get_object_or_404(Pedido, pk=pedido_id)
+
+    # detalle items (tu helper actual)
     detalle = _fetch_detalle(pedido.id)
+
+    # pagos del pedido
+    pagos = list(Pago.objects
+                 .filter(pedido_id=pedido.id)
+                 .select_related('registrado_por')
+                 .order_by('-created_at')
+                 .values('id', 'metodo', 'monto', 'referencia', 'created_at',
+                         'registrado_por__nombre'))
+
+    total_pagado = _total_pagado(pedido.id)
+    queda = (pedido.total or 0) - total_pagado
+
     return render(request, "accounts/pedido_detalle.html", {
         "pedido": pedido,
         "detalle": detalle,
+        "pagos": pagos,
+        "total_pagado": total_pagado,
+        "saldo_pendiente": queda,
     })
+
 
 @login_required
 @requiere_permiso("PEDIDO_WRITE")
@@ -217,4 +235,101 @@ def pedidos_confirmados(request):
         "page_obj": page_obj,
         "q": q,
         "estados_confirmados": ESTADOS_CONFIRMADOS,
+    })
+
+
+from decimal import Decimal
+from django.db import connection
+from django.contrib import messages
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.db.models import Sum
+
+from .permissions import requiere_permiso
+from .models_db import Pedido, Usuario, Pago
+
+
+def _total_pagado(pedido_id: int) -> Decimal:
+    """Suma de pagos registrados para un pedido."""
+    with connection.cursor() as cur:
+        cur.execute("SELECT COALESCE(SUM(monto),0) FROM pago WHERE pedido_id=%s", [pedido_id])
+        (suma,) = cur.fetchone()
+    return Decimal(suma or 0)
+
+
+
+@login_required
+def pago_registrar(request, pedido_id):
+    """
+    CU16 – Registrar pago de un pedido.
+    Permite a recepcionista/admin; opcionalmente cliente si es su pedido.
+    """
+    pedido = get_object_or_404(Pedido, pk=pedido_id)
+
+    # ¿quién puede pagar?
+    es_admin = request.user.is_staff or request.user.is_superuser
+    puede_cliente = False
+    try:
+        app_user = Usuario.objects.get(email=request.user.email)
+        puede_cliente = (pedido.cliente_id == getattr(app_user, "cliente_id", None)
+                         or pedido.cliente_id is None)  # fallback
+    except Usuario.DoesNotExist:
+        app_user = None
+
+    if not es_admin and not puede_cliente:
+        messages.error(request, "No tienes permisos para registrar pago de este pedido.")
+        return redirect("pedido_detalle", pedido_id=pedido.id)
+
+    if request.method == "POST":
+        metodo = (request.POST.get("metodo") or "").upper()
+        monto  = request.POST.get("monto")
+        ref    = (request.POST.get("referencia") or "").strip()
+
+        METODOS = {"EFECTIVO", "QR", "TRANSFERENCIA"}
+        if metodo not in METODOS:
+            messages.error(request, "Método de pago inválido.")
+            return redirect("pago_registrar", pedido_id=pedido.id)
+
+        try:
+            monto = Decimal(monto)
+        except Exception:
+            messages.error(request, "Monto inválido.")
+            return redirect("pago_registrar", pedido_id=pedido.id)
+
+        if monto <= 0:
+            messages.error(request, "El monto debe ser mayor a cero.")
+            return redirect("pago_registrar", pedido_id=pedido.id)
+
+        # Si no encontramos Usuario app, intenta asignar el primero como fallback
+        if not app_user:
+            app_user = Usuario.objects.order_by("id").first()
+
+        # Insertar pago
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO pago (pedido_id, metodo, monto, referencia, registrado_por_id, created_at)
+                VALUES (%s, %s, %s, %s, %s, NOW())
+                """,
+                [pedido.id, metodo, str(monto), ref or None, app_user.id if app_user else None],
+            )
+
+        # Mensaje según suma
+        total_pagado = _total_pagado(pedido.id)
+        if (pedido.total or 0) <= total_pagado:
+            messages.success(request, f"Pago registrado. El pedido ya está totalmente pagado ({total_pagado:.2f} Bs.).")
+        else:
+            faltante = (pedido.total or 0) - total_pagado
+            messages.success(request, f"Pago registrado. Saldo pendiente: {faltante:.2f} Bs.")
+
+        return redirect("pedido_detalle", pedido_id=pedido.id)
+
+    # GET: pintar formulario
+    total_pagado = _total_pagado(pedido.id)
+    saldo = (pedido.total or 0) - total_pagado
+
+    return render(request, "accounts/pago_form.html", {
+        "pedido": pedido,
+        "total_pagado": total_pagado,
+        "saldo_pendiente": saldo,
     })

@@ -82,3 +82,12 @@ urlpatterns += [
     # ✅ CU15: Pedidos confirmados
     path("pedidos/confirmados/", views_pedidos.pedidos_confirmados, name="pedidos_confirmados"),
 ]
+
+
+
+from . import views_pedidos
+
+urlpatterns += [
+    # ...
+    path("pedidos/<int:pedido_id>/pago/", views_pedidos.pago_registrar, name="pago_registrar"),
+]

@@ -1,14 +1,35 @@
 {% extends "base.html" %}
 {% block content %}
+
 <h2>Pedido #{{ pedido.id }}</h2>
-<p>Estado: <b>{{ pedido.estado }}</b> — Total: <b>{{ pedido.total }}</b></p>
-<p>Cliente: {{ pedido.cliente.nombre }}</p>
-<a class="btn btn-warning" href="{% url 'pedido_editar' pedido.id %}">Editar detalle</a>
+
+<p class="mb-2">
+  Estado: <b>{{ pedido.estado }}</b> —
+  Total: <b>{{ pedido.total|floatformat:2 }} Bs.</b>
+</p>
+<p class="mb-3">
+  Cliente:
+  <b>
+    {% if pedido.cliente %}
+      {{ pedido.cliente.nombre|default:pedido.cliente }}
+    {% else %}
+      —
+    {% endif %}
+  </b>
+</p>
+
+<a class="btn btn-warning btn-sm" href="{% url 'pedido_editar' pedido.id %}">Editar detalle</a>
+
 <hr>
+
 <table class="table">
   <thead>
     <tr>
-      <th>Producto</th><th>Sabor</th><th>Cantidad</th><th>PU</th><th>Subtotal</th>
+      <th>Producto</th>
+      <th>Sabor</th>
+      <th>Cantidad</th>
+      <th>P. Unit.</th>
+      <th>Subtotal</th>
     </tr>
   </thead>
   <tbody>
@@ -17,13 +38,57 @@
         <td>{{ d.producto }}</td>
         <td>{{ d.sabor }}</td>
         <td>{{ d.cantidad }}</td>
-        <td>{{ d.precio_unitario }}</td>
-        <td>{{ d.sub_total }}</td>
+        <td>{{ d.precio_unitario|floatformat:2 }}</td>
+        <td>{{ d.sub_total|floatformat:2 }}</td>
       </tr>
     {% empty %}
-      <tr><td colspan="5">Sin detalle aún.</td></tr>
+      <tr><td colspan="5" class="text-muted">Sin detalle aún.</td></tr>
     {% endfor %}
   </tbody>
 </table>
+
 <a class="btn btn-secondary" href="{% url 'pedidos_pendientes' %}">Volver</a>
+
+<hr class="my-4">
+
+<h4>Pagos</h4>
+<p class="mb-2">
+  Pagado: <strong>{{ total_pagado|floatformat:2 }} Bs.</strong>
+  {% if pedido.total and total_pagado >= pedido.total %}
+    <span class="badge text-bg-success ms-2">Pagado</span>
+  {% endif %}
+  <span class="ms-3">Saldo: <strong>{{ saldo_pendiente|floatformat:2 }} Bs.</strong></span>
+</p>
+
+<a class="btn btn-outline-primary btn-sm mb-2" href="{% url 'pago_registrar' pedido.id %}">
+  + Registrar pago
+</a>
+
+<table class="table table-sm">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Fecha</th>
+      <th>Método</th>
+      <th>Monto (Bs.)</th>
+      <th>Referencia</th>
+      <th>Registrado por</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in pagos %}
+      <tr>
+        <td>{{ p.id }}</td>
+        <td>{{ p.created_at|date:"Y-m-d H:i" }}</td>
+        <td>{{ p.metodo }}</td>
+        <td>{{ p.monto|floatformat:2 }}</td>
+        <td>{{ p.referencia }}</td>
+        <td>{{ p.registrado_por__nombre }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6" class="text-muted">Sin pagos registrados.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
 {% endblock %}

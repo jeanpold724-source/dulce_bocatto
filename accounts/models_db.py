@@ -472,3 +472,26 @@ class CompraDetalle(models.Model):
 
     def __str__(self):
         return f"{self.compra} · {self.insumo} · {self.cantidad}"
+
+
+
+# accounts/models_db.py
+from decimal import Decimal
+from django.db import models
+
+class Pago(models.Model):
+    id = models.AutoField(primary_key=True)
+    pedido = models.ForeignKey('Pedido', db_column='pedido_id', on_delete=models.DO_NOTHING)
+    metodo = models.CharField(max_length=20)  # ENUM('EFECTIVO','QR','TRANSFERENCIA')
+    monto = models.DecimalField(max_digits=12, decimal_places=2)
+    referencia = models.CharField(max_length=120, null=True, blank=True)
+    registrado_por = models.ForeignKey('Usuario', db_column='registrado_por_id',
+                                       on_delete=models.DO_NOTHING)
+    created_at = models.DateTimeField()
+
+    class Meta:
+        managed = False         # usamos la tabla existente
+        db_table = 'pago'
+
+    def __str__(self):
+        return f"Pago #{self.id} – {self.metodo} – {self.monto}"

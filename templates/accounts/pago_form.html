@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Registrar pago — Pedido #{{ pedido.id }}</h2>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-3">
+    <div class="form-control">Total: <strong>{{ pedido.total|floatformat:2 }} Bs.</strong></div>
+  </div>
+  <div class="col-md-3">
+    <div class="form-control">Pagado: <strong>{{ total_pagado|floatformat:2 }} Bs.</strong></div>
+  </div>
+  <div class="col-md-3">
+    <div class="form-control">Saldo: <strong>{{ saldo_pendiente|floatformat:2 }} Bs.</strong></div>
+  </div>
+</div>
+
+<form method="post" class="card p-3" style="max-width:640px">
+  {% csrf_token %}
+  <div class="mb-3">
+    <label class="form-label">Método de pago</label>
+    <select name="metodo" class="form-select" required>
+      <option value="EFECTIVO">Efectivo</option>
+      <option value="QR">QR</option>
+      <option value="TRANSFERENCIA">Transferencia</option>
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Monto (Bs.)</label>
+    <input type="number" step="0.01" min="0.01" name="monto" class="form-control" required>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Referencia (opcional)</label>
+    <input type="text" name="referencia" maxlength="120" class="form-control" placeholder="N° transacción, banco, etc.">
+  </div>
+
+  <div class="d-flex gap-2">
+    <button class="btn btn-success">Registrar pago</button>
+    <a href="{% url 'pedido_detalle' pedido.id %}" class="btn btn-secondary">Volver</a>
+  </div>
+</form>
+{% endblock %}
