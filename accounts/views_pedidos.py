@@ -146,18 +146,18 @@ def pedido_editar(request, pedido_id):
 
 
 # --- CU15: Consultar estado de pedidos confirmados ---------------------------
+from django.core.paginator import Paginator
 from django.db.models import Q
+from django.contrib.auth.decorators import login_required
+from .permissions import requiere_permiso
+from .models_db import Usuario, Pedido  # 👈 Asegúrate de importar tus modelos
 
 @login_required
 @requiere_permiso("PEDIDO_READ")
 def pedidos_confirmados(request):
     """
-    CU15 – Consultar estado de pedidos confirmados
-    Muestra pedidos que ya pasaron de 'PENDIENTE' a un estado confirmado/
-    productivo. Filtra por el actor:
-      - Cliente: solo sus pedidos
-      - Recepcionista/Admin: todos los pedidos
-    Soporta búsqueda simple por id o nombre de cliente (?q=...).
+    CU15 – Consultar estado de pedidos confirmados.
+    Cliente ve solo sus pedidos; recepcionista/admin ve todos.
     """
     ESTADOS_CONFIRMADOS = ["CONFIRMADO", "EN_PRODUCCION", "LISTO_ENTREGA", "ENTREGADO"]
 
@@ -166,29 +166,33 @@ def pedidos_confirmados(request):
           .filter(estado__in=ESTADOS_CONFIRMADOS)
           .order_by("-created_at", "-id"))
 
-    # --- Filtro por actor (ajusta UNA de las dos líneas según tu modelo) -----
-    # Si tu modelo Cliente tiene un OneToOne/ForeignKey a User con campo 'usuario':
-    try:
-        # Cliente logueado: ver solo sus pedidos
-        if not (getattr(request.user, "is_staff", False) or getattr(request.user, "is_superuser", False)):
-            qs = qs.filter(cliente__usuario=request.user)   # <-- usa esta si existe cliente.usuario
-            # qs = qs.filter(cliente__user=request.user)    # <-- usa esta si tu campo se llama 'user'
-    except Exception:
-        # Si tu esquema no enlaza Cliente↔User, elimina este bloque y usa permisos por rol
-        pass
+    # -------- Filtro por actor ----------------------------------------------
+    es_admin = request.user.is_staff or request.user.is_superuser
+    if not es_admin:
+        # 🔑 Mapea auth.User -> accounts.Usuario usando el email (ajústalo si tu campo es otro)
+        try:
+            app_user = Usuario.objects.get(email=request.user.email)
+        except Usuario.DoesNotExist:
+            # Usuario de app no creado/vinculado: no debe ver nada
+            qs = qs.none()
+        else:
+            # Cliente: solo sus pedidos (Cliente.usuario -> Usuario)
+            qs = qs.filter(cliente__usuario=app_user)
 
-    # --- Búsqueda opcional ----------------------------------------------------
+    # -------------------- Búsqueda opcional ----------------------------------
     q = request.GET.get("q", "").strip()
     if q:
         if q.isdigit():
             qs = qs.filter(Q(id=int(q)) | Q(cliente__nombre__icontains=q))
         else:
-            qs = qs.filter(Q(cliente__nombre__icontains=q))
+            qs = qs.filter(cliente__nombre__icontains=q)
 
-    contexto = {
-        "pedidos": qs,
+    # ----------------------- Paginación --------------------------------------
+    page_obj = Paginator(qs, 15).get_page(request.GET.get("page"))
+
+    return render(request, "accounts/pedidos_confirmados.html", {
+        "pedidos": page_obj.object_list,
+        "page_obj": page_obj,
         "q": q,
         "estados_confirmados": ESTADOS_CONFIRMADOS,
-    }
-    return render(request, "accounts/pedidos_confirmados.html", contexto)
-# -----------------------------------------------------------------------------
+    })
