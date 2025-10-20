@@ -146,11 +146,16 @@ def pedido_editar(request, pedido_id):
 
 
 # --- CU15: Consultar estado de pedidos confirmados ---------------------------
-from django.core.paginator import Paginator
-from django.db.models import Q
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.db import models
+from django.db.models import Q, F, Value
+from django.db.models.functions import Coalesce, Concat, Trim, NullIf
+from django.shortcuts import render
+
 from .permissions import requiere_permiso
-from .models_db import Usuario, Pedido  # 👈 Asegúrate de importar tus modelos
+from .models_db import Pedido, Usuario
+
 
 @login_required
 @requiere_permiso("PEDIDO_READ")
@@ -161,35 +166,52 @@ def pedidos_confirmados(request):
     """
     ESTADOS_CONFIRMADOS = ["CONFIRMADO", "EN_PRODUCCION", "LISTO_ENTREGA", "ENTREGADO"]
 
+    # 1) Base queryset
     qs = (Pedido.objects
-          .select_related("cliente")
           .filter(estado__in=ESTADOS_CONFIRMADOS)
           .order_by("-created_at", "-id"))
 
-    # -------- Filtro por actor ----------------------------------------------
+    # 2) Filtro por actor
     es_admin = request.user.is_staff or request.user.is_superuser
     if not es_admin:
-        # 🔑 Mapea auth.User -> accounts.Usuario usando el email (ajústalo si tu campo es otro)
+        # Mapea auth.User -> accounts.Usuario usando el email del login
         try:
             app_user = Usuario.objects.get(email=request.user.email)
         except Usuario.DoesNotExist:
-            # Usuario de app no creado/vinculado: no debe ver nada
-            qs = qs.none()
+            page_obj = Paginator(Pedido.objects.none(), 15).get_page(1)
+            return render(request, "accounts/pedidos_confirmados.html", {
+                "pedidos": page_obj.object_list,
+                "page_obj": page_obj,
+                "q": "",
+                "estados_confirmados": ESTADOS_CONFIRMADOS,
+            })
         else:
-            # Cliente: solo sus pedidos (Cliente.usuario -> Usuario)
             qs = qs.filter(cliente__usuario=app_user)
 
-    # -------------------- Búsqueda opcional ----------------------------------
+    # 3) Joins y alias de nombre del cliente con fallbacks
+    #    - Usa cliente.nombre si no está vacío ('' -> NULL con NullIf(Trim(...), ''))
+    #    - Si no, usa cliente.usuario.nombre
+    #    - Si no, usa cliente.usuario.email
+    qs = (qs.select_related("cliente", "cliente__usuario")
+            .annotate(
+                cliente_nombre=Coalesce(
+                    NullIf(Trim(F("cliente__nombre")), Value("")),
+                    NullIf(Trim(F("cliente__usuario__nombre")), Value("")),
+                    F("cliente__usuario__email"),
+                    output_field=models.CharField(),
+                )
+            ))
+
+    # 4) Búsqueda opcional
     q = request.GET.get("q", "").strip()
     if q:
         if q.isdigit():
-            qs = qs.filter(Q(id=int(q)) | Q(cliente__nombre__icontains=q))
+            qs = qs.filter(Q(id=int(q)) | Q(cliente_nombre__icontains=q))
         else:
-            qs = qs.filter(cliente__nombre__icontains=q)
+            qs = qs.filter(cliente_nombre__icontains=q)
 
-    # ----------------------- Paginación --------------------------------------
+    # 5) Paginación y render
     page_obj = Paginator(qs, 15).get_page(request.GET.get("page"))
-
     return render(request, "accounts/pedidos_confirmados.html", {
         "pedidos": page_obj.object_list,
         "page_obj": page_obj,
