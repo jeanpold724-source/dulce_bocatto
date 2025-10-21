@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>CU17 — Emitir factura · Pedido #{{ pedido.id }}</h2>
+
+<p class="mb-2">
+  Total pedido: <b>{{ pedido.total|floatformat:2 }} Bs.</b> ·
+  Pagado: <b>{{ total_pagado|floatformat:2 }} Bs.</b>
+</p>
+
+<form method="post" class="card p-3">{% csrf_token %}
+  <div class="row g-3">
+    <div class="col-md-3">
+      <label class="form-label">NIT/CI</label>
+      <input type="text" name="nit_cliente" class="form-control" required>
+    </div>
+    <div class="col-md-9">
+      <label class="form-label">Razón social / Nombre</label>
+      <input type="text" name="razon_social" class="form-control" required>
+    </div>
+  </div>
+  <div class="mt-3">
+    <button class="btn btn-primary">Generar factura</button>
+    <a class="btn btn-secondary" href="{% url 'pedido_detalle' pedido.id %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

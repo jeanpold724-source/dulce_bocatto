@@ -91,3 +91,20 @@ urlpatterns += [
     # ...
     path("pedidos/<int:pedido_id>/pago/", views_pedidos.pago_registrar, name="pago_registrar"),
 ]
+
+
+from . import views_facturas
+
+urlpatterns += [
+    # CU17: facturación
+    path("pedidos/<int:pedido_id>/factura/emitir/", views_facturas.factura_emitir, name="factura_emitir"),
+    path("pedidos/<int:pedido_id>/factura/", views_facturas.factura_detalle, name="factura_detalle"),
+]
+
+
+from . import views_facturas
+
+urlpatterns += [
+    path("facturas/", views_facturas.factura_list, name="factura_list"),
+    # … (las 2 rutas que ya tienes de emitir y detalle)
+]
