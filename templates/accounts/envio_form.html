@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Gestionar envío · Pedido #{{ pedido.id }}</h2>
+
+<div class="mb-2">
+  <span class="badge bg-info">Método: {{ pedido.metodo_envio }}</span>
+  <span class="badge bg-secondary">Pagado: {{ pagado|floatformat:2 }} Bs.</span>
+  {% if pedido.metodo_envio == 'DELIVERY' %}
+    <div class="small text-muted">Dirección: {{ pedido.direccion_entrega }}</div>
+  {% endif %}
+</div>
+
+<form method="post" class="card p-3">{% csrf_token %}
+  <div class="row g-3">
+    {% if pedido.metodo_envio == 'DELIVERY' %}
+      <div class="col-md-6">
+        <label class="form-label">Nombre del repartidor</label>
+        <input class="form-control" name="nombre_repartidor" value="{{ envio.nombre_repartidor|default:'' }}" required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Teléfono del repartidor</label>
+        <input class="form-control" name="telefono_repartidor" value="{{ envio.telefono_repartidor|default:'' }}">
+      </div>
+    {% else %}
+      <div class="col-12">
+        <div class="alert alert-light border">
+          Este pedido es <b>RETIRO</b>. Puedes registrar un encargado (opcional) o pasar directo a <i>Entregado</i> cuando el cliente recoja.
+        </div>
+      </div>
+    {% endif %}
+  </div>
+  <div class="mt-3 d-flex gap-2">
+    <button class="btn btn-primary">Guardar</button>
+    <a class="btn btn-secondary" href="{% url 'envio_list' %}">Volver</a>
+
+    {% if envio %}
+      {% if envio.estado != 'ENTREGADO' %}
+        <a class="btn btn-success ms-auto" href="{% url 'envio_marcar_entregado' pedido.id %}"
+           onclick="return confirm('¿Confirmar entrega del pedido #{{ pedido.id }}?');">
+          Marcar ENTREGADO
+        </a>
+      {% else %}
+        <span class="badge bg-success ms-auto">ENTREGADO</span>
+      {% endif %}
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

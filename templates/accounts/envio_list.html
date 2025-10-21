@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>CU24 — Envíos listos</h2>
+<p class="text-muted">Pedidos confirmados, pagados y sin registro de envío.</p>
+
+<table class="table table-hover table-sm">
+  <thead>
+    <tr>
+      <th>Pedido</th><th>Cliente</th><th>Método</th><th>Dirección</th>
+      <th class="text-end">Total</th><th class="text-end">Pagado</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>#{{ r.id }}</td>
+      <td>{{ r.cliente }}</td>
+      <td>{{ r.metodo_envio }}</td>
+      <td>{{ r.direccion_entrega|default:"-" }}</td>
+      <td class="text-end">{{ r.total|floatformat:2 }}</td>
+      <td class="text-end">{{ r.pagado|floatformat:2 }}</td>
+      <td class="text-end">
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'envio_crear_editar' r.id %}">Gestionar</a>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="text-center text-muted">No hay pedidos listos para entrega.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

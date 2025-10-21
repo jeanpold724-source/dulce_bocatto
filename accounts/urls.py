@@ -108,3 +108,12 @@ urlpatterns += [
     path("facturas/", views_facturas.factura_list, name="factura_list"),
     # … (las 2 rutas que ya tienes de emitir y detalle)
 ]
+
+
+from . import views_envios
+
+urlpatterns += [
+    path("envios/", views_envios.envio_list, name="envio_list"),
+    path("envios/<int:pedido_id>/", views_envios.envio_crear_editar, name="envio_crear_editar"),
+    path("envios/<int:pedido_id>/entregado/", views_envios.envio_marcar_entregado, name="envio_marcar_entregado"),
+]

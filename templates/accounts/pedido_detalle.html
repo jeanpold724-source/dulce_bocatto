@@ -98,5 +98,12 @@
   </a>
 {% endif %}
 
+{% if total_pagado >= pedido.total %}
+  <a class="btn btn-outline-primary btn-sm" href="{% url 'envio_crear_editar' pedido.id %}">
+    Gestionar envío
+  </a>
+{% endif %}
+
+
 
 {% endblock %}
