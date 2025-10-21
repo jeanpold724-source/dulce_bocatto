@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load tz %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h2>Perfil de Usuario</h2>
+      </div>
+      <div class="card-body">
+        <p><strong>Nombre de usuario:</strong> {{ user.username }}</p>
+        <p><strong>Email:</strong> {{ user.email }}</p>
+        <p><strong>Teléfono:</strong> {{ user.phone }}</p>
+        <a href="{% url 'perfil_editar' %}" class="btn btn-warning mb-2">Editar Perfil</a>
+        <a href="{% url 'cambiar_password' %}" class="btn btn-secondary mb-2">Cambiar Contraseña</a>
+        <form method="POST" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <div class="d-grid">
+            <button type="submit" class="btn btn-danger">
+              Cerrar sesión
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-8">
+    <h2>Mis Pedidos</h2>
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    {% if pedidos %}
+      <div class="table-responsive">
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Método de Envío</th>
+              <th>Dirección de Entrega</th>
+              <th>Fecha de Entrega</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pedido in pedidos %}
+            <tr>
+              <td>{{ pedido.created_at|localtime|date:"d/m/Y H:i" }}</td>
+              <td>{{ pedido.metodo_envio }}</td>
+              <td>{{ pedido.direccion_entrega }}</td>
+              <td>
+                {% if pedido.fecha_entrega_programada %}
+                  {{ pedido.fecha_entrega_programada|localtime|date:"d/m/Y H:i" }}
+                {% else %}
+                  –
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge bg-{% if pedido.estado == 'PENDIENTE' %}warning{% elif pedido.estado == 'CONFIRMADO' %}success{% elif pedido.estado == 'CANCELADO' %}danger{% else %}secondary{% endif %}">
+                  {{ pedido.estado }}
+                </span>
+              </td>
+              <td>
+                {% if pedido.estado == 'PENDIENTE' %}
+                <form method="POST" action="{% url 'confirmar_pedido' pedido.id %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-success btn-sm">Confirmar</button>
+                </form>
+                <form method="POST" action="{% url 'cancelar_pedido' pedido.id %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-danger btn-sm">Cancelar</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p>No tienes pedidos registrados.</p>
+    {% endif %}
+    <a href="{% url 'catalogo' %}" class="btn btn-primary mt-3">Crear Nuevo Pedido</a>
+  </div>
+</div>
+{% endblock %}
