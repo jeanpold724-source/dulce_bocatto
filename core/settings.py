@@ -22,6 +22,14 @@ ALLOWED_HOSTS = [
     '.onrender.com',  # Esto permite cualquier subdominio de Render
 ]
 
+# Configuración CRITICA para CSRF
+CSRF_TRUSTED_ORIGINS = [
+    'https://dulce-bocatto.onrender.com',
+    'https://dulce-bocatto-1.onrender.com',
+    'https://dulce-bocatto-2.onrender.com',
+    'https://*.onrender.com',
+]
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -36,6 +44,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # ← NUEVA línea
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -107,6 +116,10 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 # En producción: STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # ← NUEVA línea
+
+# Agregar también esto:
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -123,4 +136,11 @@ AUTH_USER_MODEL = 'accounts.User'
 # Precio unitario de galleta (Bs)
 import os
 COOKIE_UNIT_PRICE_BS = float(os.getenv("COOKIE_UNIT_PRICE_BS", "10"))
+
+# final del archivo:
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
