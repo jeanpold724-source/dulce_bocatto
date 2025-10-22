@@ -1,57 +1,52 @@
-# accounts/urls.py  (REEMPLAZA TODO ESTE ARCHIVO)
+# accounts/urls.py  (PEGA Y REEMPLAZA TODO)
 
 from django.urls import path
 from django.contrib.auth.views import LogoutView
 from rest_framework.routers import DefaultRouter
 
-# Vistas base
-from .views import (
-    cancelar_pedido, bitacora_view, confirmar_pedido,
-    perfil_editar, cambiar_password, catalogo_view, crear_pedido,
-    register_view, CustomLoginView, home_view, perfil_view,
-    proveedores_list, proveedor_create, proveedor_update, proveedor_delete,
-    insumos_list, insumo_create, insumo_update, insumo_delete,
+# Import modular: auth separado del resto
+from . import (
+    views,               # catálogo, pedidos básicos, bitácora, proveedores, insumos, etc.
+    views_auth,          # login, register, perfil, editar perfil, cambiar password
+    views_inventario,
+    views_compras,
+    views_pedidos,
+    views_facturas,
+    views_envios,
+    views_pagos,         # Stripe
 )
-
-# Módulos por feature
-from . import views_inventario
-from . import views_compras
-from . import views_pedidos
-from . import views_facturas
-from . import views_envios
-from . import views_pagos          # Stripe
 
 # ---------- Web ----------
 urlpatterns = [
     # Home / auth
-    path("", home_view, name="home"),
-    path("register/", register_view, name="register"),
-    path("login/", CustomLoginView.as_view(), name="login"),
+    path("", views_auth.home_view, name="home"),
+    path("register/", views_auth.register_view, name="register"),
+    path("login/", views_auth.CustomLoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(next_page="login"), name="logout"),
 
     # Perfil
-    path("perfil/", perfil_view, name="perfil"),
-    path("perfil/editar/", perfil_editar, name="perfil_editar"),
-    path("perfil/cambiar-password/", cambiar_password, name="cambiar_password"),
+    path("perfil/", views_auth.perfil_view, name="perfil"),
+    path("perfil/editar/", views_auth.perfil_editar, name="perfil_editar"),
+    path("perfil/cambiar-password/", views_auth.cambiar_password, name="cambiar_password"),
 
-    # Catálogo y pedido
-    path("catalogo/", catalogo_view, name="catalogo"),
-    path("pedido/<int:sabor_id>/", crear_pedido, name="crear_pedido"),
-    path("cancelar-pedido/<int:pedido_id>/", cancelar_pedido, name="cancelar_pedido"),
-    path("confirmar-pedido/<int:pedido_id>/", confirmar_pedido, name="confirmar_pedido"),
-    path("bitacora/", bitacora_view, name="bitacora"),
+    # Catálogo y pedido (estas viven en views.py)
+    path("catalogo/", views.catalogo_view, name="catalogo"),
+    path("pedido/<int:sabor_id>/", views.crear_pedido, name="crear_pedido"),
+    path("cancelar-pedido/<int:pedido_id>/", views.cancelar_pedido, name="cancelar_pedido"),
+    path("confirmar-pedido/<int:pedido_id>/", views.confirmar_pedido, name="confirmar_pedido"),
+    path("bitacora/", views.bitacora_view, name="bitacora"),
 
     # Proveedores (CU06)
-    path("proveedores/", proveedores_list, name="proveedores_list"),
-    path("proveedores/nuevo/", proveedor_create, name="proveedor_create"),
-    path("proveedores/<int:pk>/editar/", proveedor_update, name="proveedor_update"),
-    path("proveedores/<int:pk>/eliminar/", proveedor_delete, name="proveedor_delete"),
+    path("proveedores/", views.proveedores_list, name="proveedores_list"),
+    path("proveedores/nuevo/", views.proveedor_create, name="proveedor_create"),
+    path("proveedores/<int:pk>/editar/", views.proveedor_update, name="proveedor_update"),
+    path("proveedores/<int:pk>/eliminar/", views.proveedor_delete, name="proveedor_delete"),
 
     # Insumos
-    path("insumos/", insumos_list, name="insumos_list"),
-    path("insumos/nuevo/", insumo_create, name="insumo_create"),
-    path("insumos/<int:pk>/editar/", insumo_update, name="insumo_update"),
-    path("insumos/<int:pk>/eliminar/", insumo_delete, name="insumo_delete"),
+    path("insumos/", views.insumos_list, name="insumos_list"),
+    path("insumos/nuevo/", views.insumo_create, name="insumo_create"),
+    path("insumos/<int:pk>/editar/", views.insumo_update, name="insumo_update"),
+    path("insumos/<int:pk>/eliminar/", views.insumo_delete, name="insumo_delete"),
 
     # Inventario
     path("inventario/movimiento/", views_inventario.movimiento_crear, name="movimiento_crear"),
@@ -70,7 +65,7 @@ urlpatterns = [
     path("pedidos/<int:pedido_id>/editar/", views_pedidos.pedido_editar, name="pedido_editar"),
     path("pedidos/confirmados/", views_pedidos.pedidos_confirmados, name="pedidos_confirmados"),
 
-    # Registrar pago manual (tu CU16 existente)
+    # Registrar pago manual (CU16 existente)
     path("pedidos/<int:pedido_id>/pago/", views_pedidos.pago_registrar, name="pago_registrar"),
 
     # Facturas (CU17)
@@ -84,6 +79,7 @@ urlpatterns = [
     path("envios/<int:pedido_id>/entregado/", views_envios.envio_marcar_entregado, name="envio_marcar_entregado"),
 
     # Stripe Checkout (CU16 – pasarela)
+    # OJO: usa la función que realmente tengas en views_pagos (crear_checkout_session o crear_checkout)
     path("pago/<int:pedido_id>/", views_pagos.crear_checkout_session, name="crear_checkout"),
     path("pagos/success/<int:pedido_id>/", views_pagos.pago_exitoso, name="pago_exitoso"),
     path("pagos/cancel/<int:pedido_id>/", views_pagos.pago_cancelado, name="pago_cancelado"),
