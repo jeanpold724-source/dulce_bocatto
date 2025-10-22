@@ -92,8 +92,8 @@ def pedidos_pendientes(request):
 def pedido_detalle(request, pedido_id):
     pedido = get_object_or_404(Pedido, pk=pedido_id)
 
+    # Detalle e importes
     detalle = _fetch_detalle(pedido.id)
-
     pagos = list(
         Pago.objects.filter(pedido_id=pedido.id)
         .select_related("registrado_por")
@@ -107,9 +107,19 @@ def pedido_detalle(request, pedido_id):
             "registrado_por__nombre",
         )
     )
-
     total_pagado = _total_pagado(pedido.id)
     saldo = (pedido.total or 0) - total_pagado
+
+    # Flags de permisos/acciones (para que el template esté limpio)
+    es_duenio = False
+    try:
+        # Emparejamos por email app_user <-> cliente.usuario
+        if request.user.is_authenticated and pedido.cliente and pedido.cliente.usuario:
+            es_duenio = (pedido.cliente.usuario.email or "").lower() == (request.user.email or "").lower()
+    except Exception:
+        es_duenio = False
+
+    puede_editar = es_duenio and (saldo or 0) > 0 and pedido.estado not in ("ENTREGADO", "CANCELADO")
 
     return render(
         request,
@@ -120,6 +130,8 @@ def pedido_detalle(request, pedido_id):
             "pagos": pagos,
             "total_pagado": total_pagado,
             "saldo_pendiente": saldo,
+            "es_duenio": es_duenio,
+            "puede_editar": puede_editar,
         },
     )
 

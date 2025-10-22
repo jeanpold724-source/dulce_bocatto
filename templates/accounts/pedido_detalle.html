@@ -8,18 +8,12 @@
   Total: <b>{{ pedido.total|floatformat:2 }} Bs.</b>
 </p>
 
-{# ✏️ Editar pedido: solo dueño, con saldo pendiente y no finalizado #}
-{% if request.user.is_authenticated
-      and pedido.cliente and pedido.cliente.usuario
-      and pedido.cliente.usuario.email|lower == request.user.email|lower
-      and saldo_pendiente|default:0 > 0
-      and pedido.estado not in ('ENTREGADO','CANCELADO') %}
+{% if puede_editar %}
   <a class="btn btn-outline-secondary btn-sm float-end"
      href="{% url 'pedido_editar' pedido.id %}">
     ✏️ Editar pedido
   </a>
 {% endif %}
-
 
 <p class="mb-3">
   Cliente:
@@ -32,7 +26,11 @@
   </b>
 </p>
 
-<a class="btn btn-warning btn-sm" href="{% url 'pedido_editar' pedido.id %}">Editar detalle</a>
+{% if puede_editar %}
+  <a class="btn btn-warning btn-sm mb-2" href="{% url 'pedido_editar' pedido.id %}">
+    Editar detalle
+  </a>
+{% endif %}
 
 <hr>
 
@@ -74,8 +72,7 @@
   <span class="ms-3">Saldo: <strong>{{ saldo_pendiente|floatformat:2 }} Bs.</strong></span>
 </p>
 
-{# Botón Stripe: solo el dueño del pedido (por email) y si queda saldo #}
-{% if request.user.is_authenticated and pedido.cliente and pedido.cliente.usuario and pedido.cliente.usuario.email == request.user.email and saldo_pendiente|default:0 > 0 %}
+{% if es_duenio and saldo_pendiente|default:0 > 0 %}
   <div class="text-end my-3">
     <a class="btn btn-success" href="{% url 'crear_checkout' pedido.id %}">
       💳 Pagar con tarjeta (Stripe) — {{ saldo_pendiente|floatformat:2 }} Bs
@@ -83,7 +80,6 @@
   </div>
 {% endif %}
 
-{# Botón manual: solo staff o usuarios con permiso de registrar pagos #}
 {% if request.user.is_staff or perms.accounts.add_pago %}
   <a class="btn btn-outline-primary btn-sm mb-2" href="{% url 'pago_registrar' pedido.id %}">
     + Registrar pago
@@ -108,8 +104,8 @@
         <td>{{ p.created_at|date:"Y-m-d H:i" }}</td>
         <td>{{ p.metodo }}</td>
         <td>{{ p.monto|floatformat:2 }}</td>
-        <td>{{ p.referencia }}</td>
-        <td>{{ p.registrado_por__nombre }}</td>
+        <td>{{ p.referencia|default:"—" }}</td>
+        <td>{{ p.registrado_por.nombre|default:"—" }}</td>
       </tr>
     {% empty %}
       <tr><td colspan="6" class="text-muted">Sin pagos registrados.</td></tr>
@@ -117,8 +113,7 @@
   </tbody>
 </table>
 
-{% comment %} Acciones posteriores (factura y envío) {% endcomment %}
-{% if total_pagado >= pedido.total %}
+{% if pedido.total and total_pagado >= pedido.total %}
   <a class="btn btn-success btn-sm mb-3" href="{% url 'factura_emitir' pedido.id %}">
     Emitir factura
   </a>
