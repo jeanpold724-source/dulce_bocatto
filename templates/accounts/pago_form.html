@@ -14,6 +14,17 @@
   </div>
 </div>
 
+{% if saldo == 0 %}
+  <div class="alert alert-success text-center mt-3">
+    ✅ Este pedido ya está completamente pagado.
+  </div>
+{% else %}
+  <div class="alert alert-warning text-center mt-3">
+    💰 Saldo pendiente: <strong>{{ saldo|floatformat:2 }} Bs.</strong>
+  </div>
+{% endif %}
+
+
 <form method="post" class="card p-3" style="max-width:640px">
   {% csrf_token %}
   <div class="mb-3">
@@ -40,4 +51,12 @@
     <a href="{% url 'pedido_detalle' pedido.id %}" class="btn btn-secondary">Volver</a>
   </div>
 </form>
+
+<hr>
+<div class="text-center mt-3">
+  <a href="{% url 'crear_checkout' pedido.id %}" class="btn btn-outline-primary">
+    💳 Pagar con tarjeta (Stripe)
+  </a>
+</div>
+
 {% endblock %}

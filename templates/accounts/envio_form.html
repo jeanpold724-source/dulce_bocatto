@@ -1,18 +1,16 @@
-{% extends "base.html" %}
-{% block content %}
 <h2>Gestionar envío · Pedido #{{ pedido.id }}</h2>
 
 <div class="mb-2">
-  <span class="badge bg-info">Método: {{ pedido.metodo_envio }}</span>
+  <span class="badge bg-info">Método: {{ pedido.metodo_envio|title }}</span>
   <span class="badge bg-secondary">Pagado: {{ pagado|floatformat:2 }} Bs.</span>
-  {% if pedido.metodo_envio == 'DELIVERY' %}
+  {% if is_delivery %}
     <div class="small text-muted">Dirección: {{ pedido.direccion_entrega }}</div>
   {% endif %}
 </div>
 
 <form method="post" class="card p-3">{% csrf_token %}
   <div class="row g-3">
-    {% if pedido.metodo_envio == 'DELIVERY' %}
+    {% if is_delivery %}
       <div class="col-md-6">
         <label class="form-label">Nombre del repartidor</label>
         <input class="form-control" name="nombre_repartidor" value="{{ envio.nombre_repartidor|default:'' }}" required>
@@ -45,4 +43,3 @@
     {% endif %}
   </div>
 </form>
-{% endblock %}

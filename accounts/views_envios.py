@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from .models_db import Pedido
 
+
 # --- helpers -------------------------------------------------
 
 def _envio_by_pedido(pid: int):
@@ -15,10 +16,11 @@ def _envio_by_pedido(pid: int):
           FROM envio WHERE pedido_id=%s
         """, [pid])
         row = cur.fetchone()
-        if not row: 
+        if not row:
             return None
         cols = [c[0] for c in cur.description]
         return dict(zip(cols, row))
+
 
 def _total_pagado(pid: int):
     with connection.cursor() as cur:
@@ -26,10 +28,11 @@ def _total_pagado(pid: int):
         (suma,) = cur.fetchone()
         return float(suma or 0)
 
+
 def _pedidos_listos():
     """
     Precondición del CU24 (equivalente a 'listo_entrega'):
-    - pedido.estado IN ('CONFIRMADO','ENTREGADO' preliminar)
+    - pedido.estado IN ('CONFIRMADO')
     - suma(pago.monto) >= pedido.total
     - sin registro en envio (aún no gestionado)
     """
@@ -50,22 +53,31 @@ def _pedidos_listos():
         cols = [c[0] for c in cur.description]
         return [dict(zip(cols, r)) for r in cur.fetchall()]
 
+
 # --- vistas --------------------------------------------------
 
 @login_required
 def envio_list(request):
+    """
+    Lista de pedidos listos para gestionar envío.
+    """
     rows = _pedidos_listos()
     return render(request, "accounts/envio_list.html", {"rows": rows})
+
 
 @login_required
 def envio_crear_editar(request, pedido_id: int):
     """
-    Paso 2 del flujo: seleccionar pedido y asignar repartidor
+    Paso 2 del flujo: seleccionar pedido y asignar repartidor.
     Se permite también editar el repartidor si ya existe el envío.
     """
     pedido = get_object_or_404(Pedido, pk=pedido_id)
     envio = _envio_by_pedido(pedido.id)
     pagado = _total_pagado(pedido.id)
+
+    # --- bandera robusta para plantillas ---
+    metodo_envio = (pedido.metodo_envio or "").strip().upper()
+    is_delivery = (metodo_envio == "DELIVERY")
 
     # Bloquea si no cumple precondición
     if pagado < float(pedido.total or 0):
@@ -74,9 +86,10 @@ def envio_crear_editar(request, pedido_id: int):
 
     if request.method == "POST":
         nombre = (request.POST.get("nombre_repartidor") or "").strip()
-        fono   = (request.POST.get("telefono_repartidor") or "").strip()
+        fono = (request.POST.get("telefono_repartidor") or "").strip()
 
-        if pedido.metodo_envio == "DELIVERY" and not nombre:
+        # Validación solo para delivery
+        if is_delivery and not nombre:
             messages.error(request, "Debes asignar un repartidor para DELIVERY.")
             return redirect("envio_crear_editar", pedido_id=pedido.id)
 
@@ -94,14 +107,16 @@ def envio_crear_editar(request, pedido_id: int):
                       INSERT INTO envio (pedido_id, estado, nombre_repartidor, telefono_repartidor)
                       VALUES (%s, 'PENDIENTE', %s, %s)
                     """, [pedido.id, nombre, fono])
-                    messages.success(request, "Envío registrado.")
+                    messages.success(request, "Envío registrado correctamente.")
         return redirect("envio_crear_editar", pedido_id=pedido.id)
 
     return render(request, "accounts/envio_form.html", {
         "pedido": pedido,
         "envio": envio,
         "pagado": pagado,
+        "is_delivery": is_delivery,
     })
+
 
 @login_required
 def envio_marcar_entregado(request, pedido_id: int):
@@ -111,6 +126,7 @@ def envio_marcar_entregado(request, pedido_id: int):
     """
     pedido = get_object_or_404(Pedido, pk=pedido_id)
     envio = _envio_by_pedido(pedido.id)
+
     if not envio:
         messages.error(request, "Primero registra el envío (repartidor / retiro).")
         return redirect("envio_crear_editar", pedido_id=pedido.id)

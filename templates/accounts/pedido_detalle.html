@@ -104,6 +104,13 @@
   </a>
 {% endif %}
 
+{% if saldo and saldo|floatformat:2 != "0.00" %}
+  <a href="{% url 'crear_checkout' pedido.id %}" class="btn btn-dark">
+    Pagar con tarjeta (Stripe)
+  </a>
+{% endif %}
+
+
 
 
 {% endblock %}

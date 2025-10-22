@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5 text-center">
+  <h2>❌ Pago cancelado</h2>
+  <p>Tu transacción fue cancelada. Puedes intentarlo nuevamente.</p>
+  <a href="{% url 'pedido_detalle' pedido_id %}" class="btn btn-outline-secondary mt-3">Volver al pedido</a>
+</div>
+{% endblock %}

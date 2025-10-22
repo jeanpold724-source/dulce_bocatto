@@ -10,6 +10,7 @@
     <div class="card-body">
       <div class="row g-3">
 
+        <!-- Cantidad -->
         <div class="col-sm-4">
           <label class="form-label">Cantidad</label>
           <input type="number" name="cantidad" value="{{ cantidad }}" min="1" max="99"
@@ -17,37 +18,48 @@
           <div class="form-text">Precio unitario: <b>Bs {{ precio_unit }}</b></div>
         </div>
 
+        <!-- Método de Envío -->
         <div class="col-sm-8">
           <label class="form-label d-block">Método de Envío</label>
+
           <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="metodo_envio" id="met_local"
-                   value="local" checked onclick="recalcular()">
-            <label class="form-check-label" for="met_local">Recoger en Local (sin costo)</label>
+            <input class="form-check-input" type="radio" name="metodo_envio" id="met_retiro"
+                   value="RETIRO" checked onclick="recalcular()">
+            <label class="form-check-label" for="met_retiro">
+              Retiro en Tienda (sin costo)
+            </label>
           </div>
+
           <div class="form-check form-check-inline">
             <input class="form-check-input" type="radio" name="metodo_envio" id="met_delivery"
-                   value="delivery" onclick="recalcular()">
-            <label class="form-check-label" for="met_delivery">Envío a domicilio (Bs 5)</label>
+                   value="DELIVERY" onclick="recalcular()">
+            <label class="form-check-label" for="met_delivery">
+              Envío a Domicilio (Bs 5)
+            </label>
           </div>
         </div>
 
+        <!-- Dirección -->
         <div class="col-12">
           <label class="form-label">Dirección de Entrega</label>
           <input type="text" name="direccion_entrega" class="form-control"
                  placeholder="Si eliges envío a domicilio">
         </div>
 
+        <!-- Fecha programada -->
         <div class="col-sm-6">
           <label class="form-label">Fecha de Entrega Programada (Opcional)</label>
           <input type="datetime-local" name="fecha_entrega_programada" class="form-control">
         </div>
 
+        <!-- Observaciones -->
         <div class="col-sm-6">
           <label class="form-label">Observaciones</label>
           <input type="text" name="observaciones" class="form-control"
                  placeholder="Ej: sin maní, tocar timbre, etc.">
         </div>
 
+        <!-- Resumen -->
         <div class="col-12">
           <div class="alert alert-secondary mb-0">
             <div><strong>Resumen</strong></div>
@@ -59,6 +71,8 @@
 
       </div>
     </div>
+
+    <!-- Botones -->
     <div class="card-footer bg-white border-0 d-flex gap-2">
       <a href="{% url 'catalogo' %}" class="btn btn-outline-secondary">Volver al Catálogo</a>
       <button class="btn btn-primary ms-auto" type="submit">Realizar Pedido</button>
@@ -66,8 +80,9 @@
   </form>
 </div>
 
+<!-- Script -->
 <script>
-  const PRECIO = {{ precio_unit }};
+  const PRECIO = parseFloat('{{ precio_unit }}'.replace(',', '.')) || 0;
   function recalcular(){
     const qty = parseInt(document.querySelector('input[name=cantidad]').value || '1', 10);
     const delivery = document.getElementById('met_delivery').checked;

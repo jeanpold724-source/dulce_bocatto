@@ -31,3 +31,16 @@ media/
 .env
 .env.*
 *.env
+
+# secrets
+.env
+*.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+# secrets
+.env
+*.env
+.env.*
+!.env.example

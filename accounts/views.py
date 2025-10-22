@@ -157,12 +157,16 @@ def perfil_view(request):
 # ---------- Crear pedido (con cantidad y detalle) ----------
 @login_required
 def crear_pedido(request, sabor_id):
+    from decimal import Decimal
+    from django.utils import timezone
+    from django.utils.timezone import make_aware
+    from datetime import datetime
+
     sabor = get_object_or_404(Sabor, id=sabor_id, activo=1)
     cliente = get_cliente_actual(request)
 
     # --- GET: mostrar la pantalla intermedia con cantidad y precio ---
     if request.method == "GET":
-        # viene del catálogo como ?cantidad=N (si no, 1)
         qty_str = request.GET.get("cantidad", "1")
         try:
             cantidad = max(1, min(int(qty_str), 99))
@@ -175,23 +179,31 @@ def crear_pedido(request, sabor_id):
             {
                 "sabor": sabor,
                 "cantidad": cantidad,
-                "precio_unit": get_precio_unit(),  # <-- importante
+                "precio_unit": get_precio_unit(),
             },
         )
 
     # --- POST: crear el pedido y el detalle ---
-    # cantidad desde el formulario intermedio
     qty_str = request.POST.get("cantidad", "1")
     try:
         cantidad = max(1, min(int(qty_str), 99))
     except ValueError:
         cantidad = 1
 
-    metodo = request.POST.get("metodo_envio", "local")  # "local" / "delivery"
-    direccion = request.POST.get("direccion_entrega", "")
-    fecha_str = request.POST.get("fecha_entrega_programada", "")
-    observaciones = request.POST.get("observaciones", "")
+    # NORMALIZAR método de envío para cumplir el CHECK de MySQL
+    metodo = (request.POST.get("metodo_envio") or "").strip().upper()   # <-- clave
+    if metodo not in ("RETIRO", "DELIVERY"):
+        metodo = "RETIRO"  # default seguro
 
+    direccion = (request.POST.get("direccion_entrega") or "").strip()
+    fecha_str = request.POST.get("fecha_entrega_programada", "")
+    observaciones = (request.POST.get("observaciones") or "").strip()
+
+    # Si es RETIRO, no tiene sentido guardar una dirección
+    if metodo == "RETIRO":
+        direccion = None
+
+    # Parseo de fecha/hora
     fecha_entrega = None
     if fecha_str:
         try:
@@ -200,13 +212,13 @@ def crear_pedido(request, sabor_id):
             fecha_entrega = None
 
     precio_unit = get_precio_unit()
-    costo_envio = Decimal("5.00") if metodo.lower() == "delivery" else Decimal("0.00")
+    costo_envio = Decimal("5.00") if metodo == "DELIVERY" else Decimal("0.00")  # <-- usa método normalizado
 
     # 1) Pedido
     pedido = Pedido.objects.create(
         cliente=cliente,
         estado="PENDIENTE",
-        metodo_envio=metodo,
+        metodo_envio=metodo,                 # <-- ahora válido para el CHECK
         costo_envio=costo_envio,
         direccion_entrega=direccion,
         total=Decimal("0.00"),
@@ -216,7 +228,8 @@ def crear_pedido(request, sabor_id):
     )
 
     # 2) Producto base
-    producto = Producto.objects.filter(nombre__iexact="Galleta").first() or Producto.objects.first()
+    producto = (Producto.objects.filter(nombre__iexact="Galleta").first()
+                or Producto.objects.first())
     if not producto:
         messages.error(request, "No hay productos definidos. Crea 'Galleta' en la base.")
         return redirect("catalogo")
