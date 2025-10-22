@@ -61,11 +61,7 @@ TEMPLATES = [{
     },
 }]
 
-# Configuración para CSRF
-CSRF_TRUSTED_ORIGINS = [
-    'https://dulce-bocatto.onrender.com',
-    'https://*.onrender.com',
-]
+
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
