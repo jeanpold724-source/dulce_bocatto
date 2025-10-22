@@ -21,3 +21,9 @@ urlpatterns = [
     # si decides activar el webhook más adelante:
     # path('webhooks/stripe/', stripe_webhook, name='stripe_webhook'),
 ]
+
+
+from core.urls_debug import urls_debug_view
+urlpatterns += [
+    path("debug/urls/", urls_debug_view, name="urls_debug")
+]

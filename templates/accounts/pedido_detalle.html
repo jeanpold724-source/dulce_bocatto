@@ -8,6 +8,19 @@
   Total: <b>{{ pedido.total|floatformat:2 }} Bs.</b>
 </p>
 
+{# ✏️ Editar pedido: solo dueño, con saldo pendiente y no finalizado #}
+{% if request.user.is_authenticated
+      and pedido.cliente and pedido.cliente.usuario
+      and pedido.cliente.usuario.email|lower == request.user.email|lower
+      and saldo_pendiente|default:0 > 0
+      and pedido.estado not in ('ENTREGADO','CANCELADO') %}
+  <a class="btn btn-outline-secondary btn-sm float-end"
+     href="{% url 'pedido_editar' pedido.id %}">
+    ✏️ Editar pedido
+  </a>
+{% endif %}
+
+
 <p class="mb-3">
   Cliente:
   <b>

@@ -53,9 +53,14 @@
               {% endif %}
             {% endwith %}
           </td>
+
           <td class="text-end">
-            <!-- Botón Ver detalle -->
-            <a href="{% url 'pedido_detalle' p.id %}" class="btn btn-sm btn-outline-secondary">Ver</a>
+            <a class="btn btn-light btn-sm" href="{% url 'pedido_detalle' p.id %}">Ver</a>
+
+            {# ✏️ Editar: solo dueño y no finalizado. La validación de pagos la hace la vista. #}
+            {% if request.user.is_authenticated and p.cliente and p.cliente.usuario and p.cliente.usuario.email|lower == request.user.email|lower and p.estado != 'ENTREGADO' and p.estado != 'CANCELADO' %}
+              <a class="btn btn-outline-secondary btn-sm" href="{% url 'pedido_editar' p.id %}">✏️ Editar</a>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -63,7 +68,6 @@
     </table>
   </div>
 
-  {# Paginación (opcional; se muestra solo si hay más de una página) #}
   {% if page_obj and page_obj.has_other_pages %}
   <nav aria-label="Paginación de pedidos" class="mt-3">
     <ul class="pagination justify-content-center">
@@ -97,7 +101,6 @@
   {% endif %}
 
 {% else %}
-  <!-- Mensaje cuando no hay pedidos -->
   <div class="alert alert-info">
     Aún no tienes pedidos confirmados. ¿Quieres realizar uno?
     <a class="alert-link" href="{% url 'catalogo' %}">Ir al catálogo</a>.

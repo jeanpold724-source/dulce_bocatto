@@ -14,10 +14,21 @@
         <td>{{ p.cliente.nombre }}</td>
         <td>{{ p.created_at|date:"Y-m-d H:i" }}</td>
         <td>{{ p.total }}</td>
-        <td>
-          <a class="btn btn-sm btn-primary" href="{% url 'pedido_detalle' p.id %}">Ver</a>
-          <a class="btn btn-sm btn-warning" href="{% url 'pedido_editar' p.id %}">Editar</a>
-        </td>
+        <td class="text-end">
+  <a class="btn btn-light btn-sm" href="{% url 'pedido_detalle' p.id %}">Ver</a>
+
+  {# ✏️ Editar: solo dueño y no finalizado.
+     En esta lista quizá no tenés total_pagado/saldo, así que dejamos que la vista valide pagos. #}
+  {% if request.user.is_authenticated
+        and p.cliente and p.cliente.usuario
+        and p.cliente.usuario.email|lower == request.user.email|lower
+        and p.estado not in ('ENTREGADO','CANCELADO') %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'pedido_editar' p.id %}">
+      ✏️ Editar
+    </a>
+  {% endif %}
+</td>
+
       </tr>
     {% empty %}
       <tr><td colspan="5">No hay pedidos pendientes.</td></tr>
