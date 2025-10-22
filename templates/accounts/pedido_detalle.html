@@ -7,6 +7,7 @@
   Estado: <b>{{ pedido.estado }}</b> —
   Total: <b>{{ pedido.total|floatformat:2 }} Bs.</b>
 </p>
+
 <p class="mb-3">
   Cliente:
   <b>
@@ -60,9 +61,21 @@
   <span class="ms-3">Saldo: <strong>{{ saldo_pendiente|floatformat:2 }} Bs.</strong></span>
 </p>
 
-<a class="btn btn-outline-primary btn-sm mb-2" href="{% url 'pago_registrar' pedido.id %}">
-  + Registrar pago
-</a>
+{# Botón Stripe: solo el dueño del pedido (por email) y si queda saldo #}
+{% if request.user.is_authenticated and pedido.cliente and pedido.cliente.usuario and pedido.cliente.usuario.email == request.user.email and saldo_pendiente|default:0 > 0 %}
+  <div class="text-end my-3">
+    <a class="btn btn-success" href="{% url 'crear_checkout' pedido.id %}">
+      💳 Pagar con tarjeta (Stripe) — {{ saldo_pendiente|floatformat:2 }} Bs
+    </a>
+  </div>
+{% endif %}
+
+{# Botón manual: solo staff o usuarios con permiso de registrar pagos #}
+{% if request.user.is_staff or perms.accounts.add_pago %}
+  <a class="btn btn-outline-primary btn-sm mb-2" href="{% url 'pago_registrar' pedido.id %}">
+    + Registrar pago
+  </a>
+{% endif %}
 
 <table class="table table-sm">
   <thead>
@@ -91,26 +104,14 @@
   </tbody>
 </table>
 
-{% comment %} Botón Emitir factura (CU17) {% endcomment %}
+{% comment %} Acciones posteriores (factura y envío) {% endcomment %}
 {% if total_pagado >= pedido.total %}
   <a class="btn btn-success btn-sm mb-3" href="{% url 'factura_emitir' pedido.id %}">
     Emitir factura
   </a>
-{% endif %}
-
-{% if total_pagado >= pedido.total %}
   <a class="btn btn-outline-primary btn-sm" href="{% url 'envio_crear_editar' pedido.id %}">
     Gestionar envío
   </a>
 {% endif %}
-
-{% if saldo and saldo|floatformat:2 != "0.00" %}
-  <a href="{% url 'crear_checkout' pedido.id %}" class="btn btn-dark">
-    Pagar con tarjeta (Stripe)
-  </a>
-{% endif %}
-
-
-
 
 {% endblock %}
