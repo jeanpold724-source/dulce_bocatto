@@ -15,8 +15,12 @@ SECRET_KEY = 'django-insecure-fef8$a=7j8#5oic8v2lfovfm1r&eimp#m&n9nw$de@-mi)gc#m
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = [
+    'dulce-bocatto-1.onrender.com',
+    'localhost',
+    '127.0.0.1',
+    '.onrender.com',  # Esto permite cualquier subdominio de Render
+]
 
 # Application definition
 INSTALLED_APPS = [
