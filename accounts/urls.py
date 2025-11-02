@@ -95,6 +95,17 @@ urlpatterns = [
     path("clientes/historial/export.html", historial_clientes_html, name="historial_clientes_html"),
 ]
 
+# CU23 – Ventas diarias
+from .views_reportes import ventas_diarias, ventas_diarias_csv, ventas_diarias_html, ventas_diarias_pdf
+
+urlpatterns += [
+    path("reportes/ventas-diarias/", ventas_diarias, name="ventas_diarias"),
+    path("reportes/ventas-diarias/export.csv", ventas_diarias_csv, name="ventas_diarias_csv"),
+    path("reportes/ventas-diarias/export.html", ventas_diarias_html, name="ventas_diarias_html"),
+    path("reportes/ventas-diarias/export.pdf", ventas_diarias_pdf, name="ventas_diarias_pdf"),
+]
+
+
 # ---------- API (CU04) ----------
 import accounts.api as accounts_api
 
@@ -104,3 +115,10 @@ router.register(r"api/roles",    accounts_api.RolViewSet)
 router.register(r"api/usuarios", accounts_api.UsuarioViewSet)
 
 urlpatterns += router.urls
+
+# Placeholder CU25 – Historial de compras a proveedores
+from .views_compras import historial_proveedores_placeholder
+
+urlpatterns += [
+    path("reportes/proveedores/", historial_proveedores_placeholder, name="historial_proveedores"),
+]

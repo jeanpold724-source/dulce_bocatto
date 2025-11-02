@@ -83,3 +83,15 @@ def compra_recepcionar(request, compra_id):
     else:
         messages.info(request, "La compra ya estaba recepcionada o no tiene detalles.")
     return redirect("compra_detalle", compra_id=compra_id)
+
+
+# --- Placeholder CU25 ---
+from django.shortcuts import redirect
+from django.contrib import messages
+
+def historial_proveedores_placeholder(request):
+    messages.info(
+        request,
+        "CU25 (Historial de compras a proveedores) aún no está implementado. Te llevé a Compras."
+    )
+    return redirect("compras_list")

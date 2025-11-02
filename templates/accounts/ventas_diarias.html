@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Reporte de ventas diarias</h2>
+
+<form class="row g-2 my-3" method="get">
+  <div class="col-sm-3">
+    <input class="form-control" type="date" name="d1" value="{{ d1 }}" placeholder="Desde">
+  </div>
+  <div class="col-sm-3">
+    <input class="form-control" type="date" name="d2" value="{{ d2 }}" placeholder="Hasta">
+  </div>
+  <div class="col-sm-2 d-grid">
+    <button class="btn btn-primary">Filtrar</button>
+  </div>
+  <div class="col-sm-2 d-grid">
+    <button type="button" class="btn btn-outline-secondary" onclick="window.print()">Imprimir historial</button>
+  </div>
+</form>
+
+<div class="d-flex gap-3 small text-muted mb-2">
+  <span>Pedidos: <b>{{ total_pedidos }}</b></span>
+  <span>Total: <b>{{ total_total|floatformat:2 }} Bs.</b></span>
+  <span>Pagado: <b>{{ total_pagado|floatformat:2 }} Bs.</b></span>
+  <span>Diferencia: <b>{{ total_diff|floatformat:2 }} Bs.</b></span>
+</div>
+
+<div class="mb-3">
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'ventas_diarias_csv' %}?d1={{ d1 }}&d2={{ d2 }}&sort={{ sort }}&dir={{ dir }}">Exportar CSV</a>
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'ventas_diarias_html' %}?d1={{ d1 }}&d2={{ d2 }}&sort={{ sort }}&dir={{ dir }}">Exportar HTML</a>
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'ventas_diarias_pdf' %}?d1={{ d1 }}&d2={{ d2 }}&sort={{ sort }}&dir={{ dir }}">Exportar PDF</a>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th>
+          <a href="?d1={{ d1 }}&d2={{ d2 }}&sort=fecha&dir={{ next_dir_fecha }}">Fecha</a>
+        </th>
+        <th class="text-end">
+          <a href="?d1={{ d1 }}&d2={{ d2 }}&sort=pedidos&dir={{ next_dir_ped }}">Pedidos</a>
+        </th>
+        <th class="text-end">
+          <a href="?d1={{ d1 }}&d2={{ d2 }}&sort=total&dir={{ next_dir_total }}">Total (Bs.)</a>
+        </th>
+        <th class="text-end">
+          <a href="?d1={{ d1 }}&d2={{ d2 }}&sort=pagado&dir={{ next_dir_pag }}">Pagado (Bs.)</a>
+        </th>
+        <th class="text-end">
+          <a href="?d1={{ d1 }}&d2={{ d2 }}&sort=diferencia&dir={{ next_dir_diff }}">Diferencia (Bs.)</a>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+        <tr>
+          <td>{{ r.fecha }}</td>
+          <td class="text-end">{{ r.pedidos }}</td>
+          <td class="text-end">{{ r.total|floatformat:2 }}</td>
+          <td class="text-end">{{ r.pagado|floatformat:2 }}</td>
+          <td class="text-end">{{ r.diferencia|floatformat:2 }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="text-muted">Sin resultados.</td></tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="fw-bold">
+        <td>Total</td>
+        <td class="text-end">{{ total_pedidos }}</td>
+        <td class="text-end">{{ total_total|floatformat:2 }}</td>
+        <td class="text-end">{{ total_pagado|floatformat:2 }}</td>
+        <td class="text-end">{{ total_diff|floatformat:2 }}</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+{% endblock %}

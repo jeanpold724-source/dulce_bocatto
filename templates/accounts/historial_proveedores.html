@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Historial de compras a proveedores</h2>
+
+<form class="row g-2 my-3" method="get">
+  <div class="col-sm-4">
+    <input class="form-control" type="text" name="q" value="{{ q }}" placeholder="Buscar por proveedor, teléfono o dirección">
+  </div>
+  <div class="col-sm-3">
+    <input class="form-control" type="date" name="d1" value="{{ d1 }}" placeholder="Desde">
+  </div>
+  <div class="col-sm-3">
+    <input class="form-control" type="date" name="d2" value="{{ d2 }}" placeholder="Hasta">
+  </div>
+  <div class="col-sm-2 d-grid">
+    <button class="btn btn-primary">Filtrar</button>
+  </div>
+</form>
+
+<div class="d-flex gap-3 small text-muted mb-2">
+  <span>Compras: <b>{{ total_compras }}</b></span>
+  <span>Total: <b>{{ total_monto|floatformat:2 }} Bs.</b></span>
+</div>
+
+<div class="mb-3">
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'historial_proveedores_csv' %}?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}">Exportar CSV</a>
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'historial_proveedores_html' %}?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}">Exportar HTML</a>
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'historial_proveedores_pdf' %}?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}">Exportar PDF</a>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th class="text-nowrap">
+          <a href="?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}&sort=fecha&dir={{ next_dir_fecha }}">Fecha</a>
+        </th>
+        <th>
+          <a href="?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}&sort=proveedor&dir={{ next_dir_proveedor }}">Proveedor</a>
+        </th>
+        <th>Teléfono</th>
+        <th>Dirección</th>
+        <th class="text-end">
+          <a href="?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}&sort=total&dir={{ next_dir_total }}">Total (Bs.)</a>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+        <tr>
+          <td class="text-nowrap">{{ r.fecha }}</td>
+          <td>{{ r.proveedor }}</td>
+          <td class="text-muted">{{ r.telefono }}</td>
+          <td class="text-muted">{{ r.direccion }}</td>
+          <td class="text-end">{{ r.total|floatformat:2 }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="text-muted">Sin resultados.</td></tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="fw-bold">
+        <td colspan="4" class="text-end">Total</td>
+        <td class="text-end">{{ total_monto|floatformat:2 }}</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+{% endblock %}

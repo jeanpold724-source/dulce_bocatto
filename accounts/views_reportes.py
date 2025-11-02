@@ -1,5 +1,6 @@
 # accounts/views_reportes.py
 from __future__ import annotations
+
 from datetime import datetime
 from decimal import Decimal
 import csv
@@ -9,11 +10,12 @@ from django.shortcuts import render
 from django.db import connection
 from django.contrib.auth.decorators import login_required
 
-# Usa tu decorador de permisos por código
+# Decorador de permisos propio
 from .permissions import requiere_permiso
 
+
 # -------------------------------------------------------------------
-# Helpers
+# Helpers comunes
 # -------------------------------------------------------------------
 def _build_order_mysql(sort: str, direction: str) -> str:
     """
@@ -26,8 +28,8 @@ def _build_order_mysql(sort: str, direction: str) -> str:
         direction = "desc"
 
     allowed = {
-        "cliente": "cliente",      # alias del SELECT
-        "creado":  "p.created_at", # campo real (no seleccionado, pero válido en ORDER BY)
+        "cliente": "cliente",       # alias del SELECT
+        "creado":  "p.created_at",  # campo real
         "total":   "p.total",
         "estado":  "p.estado",
     }
@@ -36,8 +38,7 @@ def _build_order_mysql(sort: str, direction: str) -> str:
     if direction == "asc":
         # Simula NULLS LAST en ASC
         return f"CASE WHEN {col} IS NULL THEN 1 ELSE 0 END, {col} ASC"
-    else:
-        return f"{col} DESC"  # en DESC los NULLs ya quedan últimos en MySQL
+    return f"{col} DESC"  # en DESC los NULLs ya quedan últimos en MySQL
 
 
 def _parse_date(s: str | None):
@@ -55,15 +56,16 @@ def _parse_date(s: str | None):
 def _fetch_historial(q: str | None, d1: str | None, d2: str | None, order_sql: str):
     """
     Trae los pedidos confirmados con totales y pagado agregado.
-    Se filtra por nombre/email (LIKE) y rango de fechas en created_at.
-    El ORDER BY se pasa como cadena previamente *whitelisteada* (order_sql).
+    Filtro por nombre/email (LIKE) y rango de fechas en created_at.
     """
     where = ["p.estado = 'CONFIRMADO'"]
     params: list = []
 
     if q:
         # evita poner % crudos en el SQL; usa CONCAT
-        where.append("(u.email LIKE CONCAT('%%', %s, '%%') OR u.nombre LIKE CONCAT('%%', %s, '%%'))")
+        where.append(
+            "(u.email LIKE CONCAT('%%', %s, '%%') OR u.nombre LIKE CONCAT('%%', %s, '%%'))"
+        )
         params.extend([q, q])
 
     if d1:
@@ -99,8 +101,9 @@ def _fetch_historial(q: str | None, d1: str | None, d2: str | None, order_sql: s
         cols = [c[0] for c in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]
 
+
 # -------------------------------------------------------------------
-# Vistas
+# Vistas: Historial de clientes (CU18)
 # -------------------------------------------------------------------
 @login_required
 @requiere_permiso("PEDIDO_READ")
@@ -115,9 +118,8 @@ def historial_clientes(request):
 
     rows = _fetch_historial(q, d1, d2, order_sql)
 
-    # Totales para la cabecera (opcional)
     total_clientes = len(rows)
-    total_pedidos = sum(r.get("pedido_id") is not None for r in rows)  # conteo de filas (una por pedido)
+    total_pedidos = sum(r.get("pedido_id") is not None for r in rows)  # una fila por pedido
     total_monto = sum(Decimal(r["total"] or 0) for r in rows)
 
     return render(
@@ -144,7 +146,6 @@ def historial_clientes_csv(request):
     d1 = (request.GET.get("d1") or "").strip() or None
     d2 = (request.GET.get("d2") or "").strip() or None
 
-    # Orden por defecto para export: último primero
     order_sql = _build_order_mysql("creado", "desc")
     rows = _fetch_historial(q, d1, d2, order_sql)
 
@@ -229,6 +230,7 @@ def historial_clientes_pdf(request):
     resp = HttpResponse(content_type="application/pdf")
     resp["Content-Disposition"] = 'attachment; filename="historial_clientes.pdf"'
 
+
     p = canvas.Canvas(resp, pagesize=landscape(A4))
     width, height = landscape(A4)
     x = 2 * cm
@@ -270,6 +272,486 @@ def historial_clientes_pdf(request):
         ]
         for i, v in enumerate(vals):
             p.drawString(col_x[i], y, v[:60])
+        y -= 0.55 * cm
+
+    p.showPage()
+    p.save()
+    return resp
+
+
+# -------------------------------------------------------------------
+# Vistas: CU23 – Ventas diarias
+# -------------------------------------------------------------------
+def _build_order_mysql_ventas(sort: str, direction: str) -> str:
+    """
+    ORDER BY para el reporte diario (MySQL, simula NULLS LAST en ASC).
+    Campos visibles: fecha, pedidos, total, pagado, diferencia
+    """
+    direction = (direction or "desc").lower()
+    if direction not in ("asc", "desc"):
+        direction = "desc"
+
+    allowed = {
+        "fecha":      "fecha",
+        "pedidos":    "pedidos",
+        "total":      "total",
+        "pagado":     "pagado",
+        "diferencia": "diferencia",
+    }
+    col = allowed.get((sort or "").lower(), "fecha")
+
+    if direction == "asc":
+        return f"CASE WHEN {col} IS NULL THEN 1 ELSE 0 END, {col} ASC"
+    return f"{col} DESC"
+
+
+def _fetch_ventas_diarias(d1: str | None, d2: str | None, order_sql: str):
+    """
+    Agrega por día los pedidos CONFIRMADO/ENTREGADO.
+    fecha | pedidos | total | pagado | diferencia
+    """
+    params: list = []
+    where = ["p.estado IN ('CONFIRMADO','ENTREGADO')"]
+
+    if d1:
+        where.append("DATE(p.created_at) >= %s")
+        params.append(d1)
+    if d2:
+        where.append("DATE(p.created_at) <= %s")
+        params.append(d2)
+
+    where_sql = " AND ".join(where) if where else "1=1"
+
+    sql = f"""
+        SELECT
+            DATE(p.created_at)                         AS fecha,
+            COUNT(DISTINCT p.id)                       AS pedidos,
+            COALESCE(SUM(p.total), 0)                  AS total,
+            COALESCE(SUM(pg.monto), 0)                 AS pagado,
+            COALESCE(SUM(p.total), 0) - COALESCE(SUM(pg.monto), 0) AS diferencia
+        FROM pedido p
+        LEFT JOIN pago pg ON pg.pedido_id = p.id
+        WHERE {where_sql}
+        GROUP BY DATE(p.created_at)
+        ORDER BY {order_sql}
+        LIMIT 1000
+    """
+
+    with connection.cursor() as cur:
+        cur.execute(sql, params)
+        cols = [c[0] for c in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+
+@login_required
+@requiere_permiso("PEDIDO_READ")
+def ventas_diarias(request):
+    d1 = (request.GET.get("d1") or "").strip()
+    d2 = (request.GET.get("d2") or "").strip()
+
+    sort = request.GET.get("sort", "fecha")
+    direction = request.GET.get("dir", "desc")
+    order_sql = _build_order_mysql_ventas(sort, direction)
+
+    rows = _fetch_ventas_diarias(d1, d2, order_sql)
+
+    # totales generales al pie
+    total_pedidos = sum(r["pedidos"] or 0 for r in rows)
+    total_total   = sum(Decimal(r["total"] or 0) for r in rows)
+    total_pagado  = sum(Decimal(r["pagado"] or 0) for r in rows)
+    total_diff    = sum(Decimal(r["diferencia"] or 0) for r in rows)
+
+    # Direcciones siguientes para cada columna (para el template)
+    def _next_dir(col: str) -> str:
+        return "asc" if (direction == "desc" or sort != col) else "desc"
+
+    context = {
+        "rows": rows,
+        "d1": d1, "d2": d2,
+        "sort": sort, "dir": direction,
+        "total_pedidos": total_pedidos,
+        "total_total": total_total,
+        "total_pagado": total_pagado,
+        "total_diff": total_diff,
+        "next_dir_fecha": _next_dir("fecha"),
+        "next_dir_ped": _next_dir("pedidos"),
+        "next_dir_total": _next_dir("total"),
+        "next_dir_pag": _next_dir("pagado"),
+        "next_dir_diff": _next_dir("diferencia"),
+    }
+    return render(request, "accounts/ventas_diarias.html", context)
+
+
+# ----------------- Exportaciones: Ventas diarias -----------------
+@login_required
+@requiere_permiso("PEDIDO_READ")
+def ventas_diarias_csv(request):
+    d1 = (request.GET.get("d1") or "").strip()
+    d2 = (request.GET.get("d2") or "").strip()
+    order_sql = _build_order_mysql_ventas(
+        request.GET.get("sort", "fecha"),
+        request.GET.get("dir", "desc"),
+    )
+    rows = _fetch_ventas_diarias(d1, d2, order_sql)
+
+    resp = HttpResponse(content_type="text/csv; charset=utf-8")
+    resp["Content-Disposition"] = 'attachment; filename="ventas_diarias.csv"'
+    w = csv.writer(resp)
+    w.writerow(["Fecha", "Pedidos", "Total (Bs.)", "Pagado (Bs.)", "Diferencia (Bs.)"])
+    for r in rows:
+        w.writerow([
+            str(r["fecha"] or ""),
+            r["pedidos"] or 0,
+            f"{Decimal(r['total'] or 0):.2f}",
+            f"{Decimal(r['pagado'] or 0):.2f}",
+            f"{Decimal(r['diferencia'] or 0):.2f}",
+        ])
+    return resp
+
+
+@login_required
+@requiere_permiso("PEDIDO_READ")
+def ventas_diarias_html(request):
+    d1 = (request.GET.get("d1") or "").strip()
+    d2 = (request.GET.get("d2") or "").strip()
+    order_sql = _build_order_mysql_ventas(
+        request.GET.get("sort", "fecha"),
+        request.GET.get("dir", "desc"),
+    )
+    rows = _fetch_ventas_diarias(d1, d2, order_sql)
+
+    html = [
+        "<!doctype html><html><head><meta charset='utf-8'><title>Ventas diarias</title>",
+        "<style>table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:6px}th{background:#f6f6f6;text-align:left}</style>",
+        "</head><body>",
+        "<h2>Reporte de ventas diarias</h2>",
+        f"<p>Desde: {d1 or '-'} &nbsp; Hasta: {d2 or '-'}</p>",
+        "<table><thead><tr>",
+        "<th>Fecha</th><th>Pedidos</th><th>Total (Bs.)</th><th>Pagado (Bs.)</th><th>Diferencia (Bs.)</th>",
+        "</tr></thead><tbody>",
+    ]
+    for r in rows:
+        html.append(
+            f"<tr><td>{r['fecha']}</td><td>{r['pedidos']}</td>"
+            f"<td>{Decimal(r['total'] or 0):.2f}</td>"
+            f"<td>{Decimal(r['pagado'] or 0):.2f}</td>"
+            f"<td>{Decimal(r['diferencia'] or 0):.2f}</td></tr>"
+        )
+    html.append("</tbody></table></body></html>")
+    return HttpResponse("".join(html), content_type="text/html; charset=utf-8")
+
+
+@login_required
+@requiere_permiso("PEDIDO_READ")
+def ventas_diarias_pdf(request):
+    try:
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.units import cm
+    except Exception:
+        return HttpResponse(
+            "Exportación a PDF no disponible: instala 'reportlab'.",
+            content_type="text/plain; charset=utf-8",
+            status=200,
+        )
+
+    d1 = (request.GET.get("d1") or "").strip()
+    d2 = (request.GET.get("d2") or "").strip()
+    order_sql = _build_order_mysql_ventas(
+        request.GET.get("sort", "fecha"),
+        request.GET.get("dir", "desc"),
+    )
+    rows = _fetch_ventas_diarias(d1, d2, order_sql)
+
+    resp = HttpResponse(content_type="application/pdf")
+    resp["Content-Disposition"] = 'attachment; filename="ventas_diarias.pdf"'
+
+    p = canvas.Canvas(resp, pagesize=landscape(A4))
+    width, height = landscape(A4)
+    x = 2 * cm
+    y = height - 2 * cm
+
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(x, y, "Reporte de ventas diarias")
+    y -= 0.8 * cm
+    p.setFont("Helvetica", 10)
+    p.drawString(x, y, f"Desde: {d1 or '-'} | Hasta: {d2 or '-'}")
+    y -= 1.0 * cm
+
+    headers = ["Fecha", "Pedidos", "Total (Bs.)", "Pagado (Bs.)", "Dif. (Bs.)"]
+    col_x = [x, x + 6*cm, x + 10*cm, x + 16*cm, x + 22*cm]
+
+    p.setFont("Helvetica-Bold", 10)
+    for i, h in enumerate(headers):
+        p.drawString(col_x[i], y, h)
+    y -= 0.6 * cm
+    p.setFont("Helvetica", 10)
+
+    for r in rows:
+        if y < 1.5 * cm:
+            p.showPage()
+            p.setFont("Helvetica-Bold", 10)
+            for i, h in enumerate(headers):
+                p.drawString(col_x[i], height - 2 * cm, h)
+            p.setFont("Helvetica", 10)
+            y = height - 2.6 * cm
+
+        vals = [
+            str(r["fecha"] or ""),
+            str(r["pedidos"] or 0),
+            f"{Decimal(r['total'] or 0):.2f}",
+            f"{Decimal(r['pagado'] or 0):.2f}",
+            f"{Decimal(r['diferencia'] or 0):.2f}",
+        ]
+        for i, v in enumerate(vals):
+            p.drawString(col_x[i], y, v[:40])
+        y -= 0.55 * cm
+
+    p.showPage()
+    p.save()
+    return resp
+
+
+# -------------------------------------------------------------------
+# CU25 – Consultar historial de compras a proveedores (según tu BD)
+# Tablas usadas:
+#   proveedor(id, nombre, telefono, direccion)
+#   compra(id, proveedor_id, fecha, total)
+# -------------------------------------------------------------------
+from decimal import Decimal
+import csv
+from django.db import connection
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse
+from django.shortcuts import render
+
+def _build_order_mysql_compras(sort: str, direction: str) -> str:
+    """
+    ORDER BY seguro (whitelist) para compras a proveedores.
+    Campos: fecha | proveedor | total
+    """
+    direction = (direction or "desc").lower()
+    if direction not in ("asc", "desc"):
+        direction = "desc"
+
+    allowed = {
+        "fecha": "c.fecha",
+        "proveedor": "pr.nombre",
+        "total": "c.total",
+    }
+    col = allowed.get((sort or "").lower(), "c.fecha")
+
+    if direction == "asc":
+        return f"CASE WHEN {col} IS NULL THEN 1 ELSE 0 END, {col} ASC"
+    return f"{col} DESC"
+
+
+def _fetch_historial_compras(q: str | None, d1: str | None, d2: str | None, order_sql: str):
+    """
+    Devuelve una fila por compra. Filtros:
+      - q: coincide con nombre/telefono/direccion del proveedor (LIKE)
+      - d1/d2: rango por DATE(c.fecha)
+    """
+    where = ["1=1"]
+    params: list = []
+
+    if q:
+        where.append("""(
+            pr.nombre   LIKE CONCAT('%%', %s, '%%')
+         OR pr.telefono LIKE CONCAT('%%', %s, '%%')
+         OR pr.direccion LIKE CONCAT('%%', %s, '%%')
+        )""")
+        params.extend([q, q, q])
+
+    if d1:
+        where.append("DATE(c.fecha) >= %s")
+        params.append(d1)
+    if d2:
+        where.append("DATE(c.fecha) <= %s")
+        params.append(d2)
+
+    where_sql = " AND ".join(where)
+
+    sql = f"""
+        SELECT
+            c.id AS compra_id,
+            DATE_FORMAT(c.fecha, '%%Y-%%m-%%d %%H:%%i') AS fecha,
+            pr.nombre   AS proveedor,
+            pr.telefono AS telefono,
+            pr.direccion AS direccion,
+            c.total     AS total
+        FROM compra c
+        JOIN proveedor pr ON pr.id = c.proveedor_id
+        WHERE {where_sql}
+        ORDER BY {order_sql}
+        LIMIT 500
+    """
+
+    with connection.cursor() as cur:
+        cur.execute(sql, params)
+        cols = [c[0] for c in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+
+@login_required
+# Si usas control de permisos, deja COMPRA_READ; si no, quítalo o adapta tu decorador propio.
+def historial_proveedores(request):
+    q  = (request.GET.get("q") or "").strip() or None
+    d1 = (request.GET.get("d1") or "").strip() or None
+    d2 = (request.GET.get("d2") or "").strip() or None
+
+    sort = request.GET.get("sort", "fecha")
+    direction = request.GET.get("dir", "desc")
+    order_sql = _build_order_mysql_compras(sort, direction)
+
+    rows = _fetch_historial_compras(q, d1, d2, order_sql)
+
+    total_compras = len(rows)
+    total_monto   = sum(Decimal(r["total"] or 0) for r in rows)
+
+    def _next_dir(col: str) -> str:
+        return "asc" if (direction == "desc" or sort != col) else "desc"
+
+    return render(
+        request,
+        "accounts/historial_proveedores.html",
+        {
+            "rows": rows,
+            "q": q or "",
+            "d1": d1 or "",
+            "d2": d2 or "",
+            "sort": sort, "dir": direction,
+            "total_compras": total_compras,
+            "total_monto": total_monto,
+            "next_dir_fecha": _next_dir("fecha"),
+            "next_dir_proveedor": _next_dir("proveedor"),
+            "next_dir_total": _next_dir("total"),
+        },
+    )
+
+
+@login_required
+def historial_proveedores_csv(request):
+    q  = (request.GET.get("q") or "").strip() or None
+    d1 = (request.GET.get("d1") or "").strip() or None
+    d2 = (request.GET.get("d2") or "").strip() or None
+
+    rows = _fetch_historial_compras(q, d1, d2, _build_order_mysql_compras("fecha", "desc"))
+
+    resp = HttpResponse(content_type="text/csv; charset=utf-8")
+    resp["Content-Disposition"] = 'attachment; filename="historial_compras_proveedores.csv"'
+    w = csv.writer(resp)
+    w.writerow(["Compra", "Fecha", "Proveedor", "Teléfono", "Dirección", "Total (Bs.)"])
+    for r in rows:
+        w.writerow([
+            r.get("compra_id", ""),
+            r.get("fecha", ""),
+            r.get("proveedor", "") or "",
+            r.get("telefono", "") or "",
+            r.get("direccion", "") or "",
+            f"{Decimal(r.get('total') or 0):.2f}",
+        ])
+    return resp
+
+
+@login_required
+def historial_proveedores_html(request):
+    q  = (request.GET.get("q") or "").strip() or None
+    d1 = (request.GET.get("d1") or "").strip() or None
+    d2 = (request.GET.get("d2") or "").strip() or None
+
+    rows = _fetch_historial_compras(q, d1, d2, _build_order_mysql_compras("fecha", "desc"))
+
+    html = [
+        "<!doctype html><html><head><meta charset='utf-8'><title>Historial de compras a proveedores</title>",
+        "<style>table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:6px}th{background:#f6f6f6;text-align:left}</style>",
+        "</head><body>",
+        "<h2>Historial de compras a proveedores</h2>",
+        f"<p>Filtro q: {q or '-'} | Desde: {d1 or '-'} | Hasta: {d2 or '-'}</p>",
+        "<table><thead><tr>",
+        "<th>#</th><th>Fecha</th><th>Proveedor</th><th>Teléfono</th><th>Dirección</th><th>Total (Bs.)</th>",
+        "</tr></thead><tbody>",
+    ]
+    for r in rows:
+        html.append(
+            "<tr>"
+            f"<td>{r.get('compra_id','')}</td>"
+            f"<td>{r.get('fecha','')}</td>"
+            f"<td>{(r.get('proveedor') or '')}</td>"
+            f"<td>{(r.get('telefono') or '')}</td>"
+            f"<td>{(r.get('direccion') or '')}</td>"
+            f"<td>{Decimal(r.get('total') or 0):.2f}</td>"
+            "</tr>"
+        )
+    html.append("</tbody></table></body></html>")
+
+    resp = HttpResponse("".join(html), content_type="text/html; charset=utf-8")
+    resp["Content-Disposition"] = 'attachment; filename=\"historial_compras_proveedores.html\"'
+    return resp
+
+
+@login_required
+def historial_proveedores_pdf(request):
+    try:
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.units import cm
+    except Exception:
+        return HttpResponse(
+            "Exportación a PDF no disponible: instala 'reportlab' (pip install reportlab).",
+            content_type="text/plain; charset=utf-8",
+            status=200,
+        )
+
+    q  = (request.GET.get("q") or "").strip() or None
+    d1 = (request.GET.get("d1") or "").strip() or None
+    d2 = (request.GET.get("d2") or "").strip() or None
+
+    rows = _fetch_historial_compras(q, d1, d2, _build_order_mysql_compras("fecha", "desc"))
+
+    resp = HttpResponse(content_type="application/pdf")
+    resp["Content-Disposition"] = 'attachment; filename=\"historial_compras_proveedores.pdf\"'
+
+    p = canvas.Canvas(resp, pagesize=landscape(A4))
+    width, height = landscape(A4)
+    x = 2 * cm
+    y = height - 2 * cm
+
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(x, y, "Historial de compras a proveedores")
+    y -= 0.8 * cm
+    p.setFont("Helvetica", 10)
+    p.drawString(x, y, f"Filtro q: {q or '-'}  |  Desde: {d1 or '-'}  |  Hasta: {d2 or '-'}")
+    y -= 1.0 * cm
+
+    headers = ["#", "Fecha", "Proveedor", "Teléfono", "Dirección", "Total (Bs.)"]
+    col_x = [x, x + 3.5*cm, x + 9.5*cm, x + 17*cm, x + 23*cm, x + 30*cm]
+
+    p.setFont("Helvetica-Bold", 10)
+    for i, h in enumerate(headers):
+        p.drawString(col_x[i], y, h)
+    y -= 0.6 * cm
+    p.setFont("Helvetica", 10)
+
+    for r in rows:
+        if y < 1.5 * cm:
+            p.showPage()
+            p.setFont("Helvetica-Bold", 10)
+            for i, h in enumerate(headers):
+                p.drawString(col_x[i], height - 2 * cm, h)
+            p.setFont("Helvetica", 10)
+            y = height - 2.6 * cm
+
+        vals = [
+            str(r.get("compra_id","")),
+            r.get("fecha",""),
+            (r.get("proveedor") or ""),
+            (r.get("telefono") or ""),
+            (r.get("direccion") or ""),
+            f"{Decimal(r.get('total') or 0):.2f}",
+        ]
+        for i, v in enumerate(vals):
+            p.drawString(col_x[i], y, (v or "")[:60])
         y -= 0.55 * cm
 
     p.showPage()
