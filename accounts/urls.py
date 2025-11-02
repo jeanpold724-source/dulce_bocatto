@@ -1,4 +1,4 @@
-# accounts/urls.py  (PEGA Y REEMPLAZA TODO)
+# accounts/urls.py  (CORREGIDO — PEGA Y REEMPLAZA TODO)
 from django.urls import path
 from django.contrib.auth.views import LogoutView
 from rest_framework.routers import DefaultRouter
@@ -88,7 +88,7 @@ urlpatterns = [
     path("envios/<int:pedido_id>/", views_envios.envio_crear_editar, name="envio_crear_editar"),
     path("envios/<int:pedido_id>/entregado/", views_envios.envio_marcar_entregado, name="envio_marcar_entregado"),
 
-    # CU18 – Historial de compras + exportaciones
+    # CU18 – Historial de compras de clientes + exportaciones
     path("clientes/historial/", historial_clientes, name="historial_clientes"),
     path("clientes/historial/export.csv", historial_clientes_csv, name="historial_clientes_csv"),
     path("clientes/historial/export.pdf", historial_clientes_pdf, name="historial_clientes_pdf"),
@@ -105,6 +105,20 @@ urlpatterns += [
     path("reportes/ventas-diarias/export.pdf", ventas_diarias_pdf, name="ventas_diarias_pdf"),
 ]
 
+# ---- CU25 – Historial de compras a proveedores ----
+from .views_reportes import (
+    historial_proveedores,
+    historial_proveedores_csv,
+    historial_proveedores_html,
+    historial_proveedores_pdf,
+)
+
+urlpatterns += [
+    path("reportes/proveedores/", historial_proveedores, name="historial_proveedores"),
+    path("reportes/proveedores/export.csv",  historial_proveedores_csv,  name="historial_proveedores_csv"),
+    path("reportes/proveedores/export.html", historial_proveedores_html, name="historial_proveedores_html"),
+    path("reportes/proveedores/export.pdf",  historial_proveedores_pdf,  name="historial_proveedores_pdf"),
+]
 
 # ---------- API (CU04) ----------
 import accounts.api as accounts_api
@@ -115,10 +129,3 @@ router.register(r"api/roles",    accounts_api.RolViewSet)
 router.register(r"api/usuarios", accounts_api.UsuarioViewSet)
 
 urlpatterns += router.urls
-
-# Placeholder CU25 – Historial de compras a proveedores
-from .views_compras import historial_proveedores_placeholder
-
-urlpatterns += [
-    path("reportes/proveedores/", historial_proveedores_placeholder, name="historial_proveedores"),
-]

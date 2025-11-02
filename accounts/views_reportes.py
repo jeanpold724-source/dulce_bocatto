@@ -10,35 +10,34 @@ from django.shortcuts import render
 from django.db import connection
 from django.contrib.auth.decorators import login_required
 
-# Decorador de permisos propio
+# Decorador de permisos propio (ajusta si no lo usas)
 from .permissions import requiere_permiso
 
 
-# -------------------------------------------------------------------
+# ================================================================
 # Helpers comunes
-# -------------------------------------------------------------------
+# ================================================================
 def _build_order_mysql(sort: str, direction: str) -> str:
     """
-    Devuelve un ORDER BY compatible con MySQL y con 'NULLS LAST' simulado cuando es ASC.
-    sort: 'cliente' | 'creado' | 'total' | 'estado'
-    direction: 'asc' | 'desc'
+    ORDER BY seguro (whitelist) para historial de clientes.
+    Campos visibles: cliente | creado | total | estado
+    Simula NULLS LAST en orden ASC.
     """
     direction = (direction or "desc").lower()
     if direction not in ("asc", "desc"):
         direction = "desc"
 
     allowed = {
-        "cliente": "cliente",       # alias del SELECT
-        "creado":  "p.created_at",  # campo real
-        "total":   "p.total",
-        "estado":  "p.estado",
+        "cliente": "cliente",
+        "creado": "p.created_at",
+        "total": "p.total",
+        "estado": "p.estado",
     }
     col = allowed.get((sort or "").lower(), "p.created_at")
 
     if direction == "asc":
-        # Simula NULLS LAST en ASC
         return f"CASE WHEN {col} IS NULL THEN 1 ELSE 0 END, {col} ASC"
-    return f"{col} DESC"  # en DESC los NULLs ya quedan últimos en MySQL
+    return f"{col} DESC"
 
 
 def _parse_date(s: str | None):
@@ -53,16 +52,18 @@ def _parse_date(s: str | None):
     return None
 
 
+# ================================================================
+# CU18 – Historial de compras de clientes
+# ================================================================
 def _fetch_historial(q: str | None, d1: str | None, d2: str | None, order_sql: str):
     """
-    Trae los pedidos confirmados con totales y pagado agregado.
+    Trae los pedidos CONFIRMADO con totales y pagado agregado.
     Filtro por nombre/email (LIKE) y rango de fechas en created_at.
     """
     where = ["p.estado = 'CONFIRMADO'"]
     params: list = []
 
     if q:
-        # evita poner % crudos en el SQL; usa CONCAT
         where.append(
             "(u.email LIKE CONCAT('%%', %s, '%%') OR u.nombre LIKE CONCAT('%%', %s, '%%'))"
         )
@@ -102,9 +103,6 @@ def _fetch_historial(q: str | None, d1: str | None, d2: str | None, order_sql: s
         return [dict(zip(cols, row)) for row in cur.fetchall()]
 
 
-# -------------------------------------------------------------------
-# Vistas: Historial de clientes (CU18)
-# -------------------------------------------------------------------
 @login_required
 @requiere_permiso("PEDIDO_READ")
 def historial_clientes(request):
@@ -118,9 +116,8 @@ def historial_clientes(request):
 
     rows = _fetch_historial(q, d1, d2, order_sql)
 
-    total_clientes = len(rows)
-    total_pedidos = sum(r.get("pedido_id") is not None for r in rows)  # una fila por pedido
-    total_monto = sum(Decimal(r["total"] or 0) for r in rows)
+    total_pedidos = len(rows)  # una fila por pedido
+    total_monto   = sum(Decimal(r["total"] or 0) for r in rows)
 
     return render(
         request,
@@ -132,7 +129,7 @@ def historial_clientes(request):
             "d2": d2 or "",
             "sort": sort,
             "dir": direction,
-            "total_clientes": total_clientes,
+            "total_clientes": len({r["cliente_email"] for r in rows if r.get("cliente_email")}),
             "total_pedidos": total_pedidos,
             "total_monto": total_monto,
         },
@@ -214,8 +211,7 @@ def historial_clientes_pdf(request):
         from reportlab.lib.units import cm
     except Exception:
         return HttpResponse(
-            "Exportación a PDF no disponible: instala 'reportlab' (pip install reportlab). "
-            "Puedes usar la exportación HTML/CSV.",
+            "Exportación a PDF no disponible: instala 'reportlab' (pip install reportlab).",
             content_type="text/plain; charset=utf-8",
             status=200,
         )
@@ -229,7 +225,6 @@ def historial_clientes_pdf(request):
 
     resp = HttpResponse(content_type="application/pdf")
     resp["Content-Disposition"] = 'attachment; filename="historial_clientes.pdf"'
-
 
     p = canvas.Canvas(resp, pagesize=landscape(A4))
     width, height = landscape(A4)
@@ -279,23 +274,19 @@ def historial_clientes_pdf(request):
     return resp
 
 
-# -------------------------------------------------------------------
-# Vistas: CU23 – Ventas diarias
-# -------------------------------------------------------------------
+# ================================================================
+# CU23 – Reporte de ventas diarias
+# ================================================================
 def _build_order_mysql_ventas(sort: str, direction: str) -> str:
-    """
-    ORDER BY para el reporte diario (MySQL, simula NULLS LAST en ASC).
-    Campos visibles: fecha, pedidos, total, pagado, diferencia
-    """
     direction = (direction or "desc").lower()
     if direction not in ("asc", "desc"):
         direction = "desc"
 
     allowed = {
-        "fecha":      "fecha",
-        "pedidos":    "pedidos",
-        "total":      "total",
-        "pagado":     "pagado",
+        "fecha": "fecha",
+        "pedidos": "pedidos",
+        "total": "total",
+        "pagado": "pagado",
         "diferencia": "diferencia",
     }
     col = allowed.get((sort or "").lower(), "fecha")
@@ -306,10 +297,6 @@ def _build_order_mysql_ventas(sort: str, direction: str) -> str:
 
 
 def _fetch_ventas_diarias(d1: str | None, d2: str | None, order_sql: str):
-    """
-    Agrega por día los pedidos CONFIRMADO/ENTREGADO.
-    fecha | pedidos | total | pagado | diferencia
-    """
     params: list = []
     where = ["p.estado IN ('CONFIRMADO','ENTREGADO')"]
 
@@ -324,10 +311,10 @@ def _fetch_ventas_diarias(d1: str | None, d2: str | None, order_sql: str):
 
     sql = f"""
         SELECT
-            DATE(p.created_at)                         AS fecha,
-            COUNT(DISTINCT p.id)                       AS pedidos,
-            COALESCE(SUM(p.total), 0)                  AS total,
-            COALESCE(SUM(pg.monto), 0)                 AS pagado,
+            DATE(p.created_at) AS fecha,
+            COUNT(DISTINCT p.id) AS pedidos,
+            COALESCE(SUM(p.total), 0) AS total,
+            COALESCE(SUM(pg.monto), 0) AS pagado,
             COALESCE(SUM(p.total), 0) - COALESCE(SUM(pg.monto), 0) AS diferencia
         FROM pedido p
         LEFT JOIN pago pg ON pg.pedido_id = p.id
@@ -355,13 +342,11 @@ def ventas_diarias(request):
 
     rows = _fetch_ventas_diarias(d1, d2, order_sql)
 
-    # totales generales al pie
     total_pedidos = sum(r["pedidos"] or 0 for r in rows)
     total_total   = sum(Decimal(r["total"] or 0) for r in rows)
     total_pagado  = sum(Decimal(r["pagado"] or 0) for r in rows)
     total_diff    = sum(Decimal(r["diferencia"] or 0) for r in rows)
 
-    # Direcciones siguientes para cada columna (para el template)
     def _next_dir(col: str) -> str:
         return "asc" if (direction == "desc" or sort != col) else "desc"
 
@@ -382,7 +367,6 @@ def ventas_diarias(request):
     return render(request, "accounts/ventas_diarias.html", context)
 
 
-# ----------------- Exportaciones: Ventas diarias -----------------
 @login_required
 @requiere_permiso("PEDIDO_READ")
 def ventas_diarias_csv(request):
@@ -512,19 +496,12 @@ def ventas_diarias_pdf(request):
     return resp
 
 
-# -------------------------------------------------------------------
-# CU25 – Consultar historial de compras a proveedores (según tu BD)
-# Tablas usadas:
-#   proveedor(id, nombre, telefono, direccion)
-#   compra(id, proveedor_id, fecha, total)
-# -------------------------------------------------------------------
-from decimal import Decimal
-import csv
-from django.db import connection
-from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
-from django.shortcuts import render
-
+# ================================================================
+# CU25 – Historial de compras a proveedores
+#   Tablas usadas (ajusta nombres si difieren):
+#     proveedor(id, nombre, telefono, direccion)
+#     compra(id, proveedor_id, fecha, total)
+# ================================================================
 def _build_order_mysql_compras(sort: str, direction: str) -> str:
     """
     ORDER BY seguro (whitelist) para compras a proveedores.
@@ -594,7 +571,6 @@ def _fetch_historial_compras(q: str | None, d1: str | None, d2: str | None, orde
 
 
 @login_required
-# Si usas control de permisos, deja COMPRA_READ; si no, quítalo o adapta tu decorador propio.
 def historial_proveedores(request):
     q  = (request.GET.get("q") or "").strip() or None
     d1 = (request.GET.get("d1") or "").strip() or None
@@ -686,7 +662,7 @@ def historial_proveedores_html(request):
     html.append("</tbody></table></body></html>")
 
     resp = HttpResponse("".join(html), content_type="text/html; charset=utf-8")
-    resp["Content-Disposition"] = 'attachment; filename=\"historial_compras_proveedores.html\"'
+    resp["Content-Disposition"] = 'attachment; filename="historial_compras_proveedores.html"'
     return resp
 
 
@@ -710,7 +686,7 @@ def historial_proveedores_pdf(request):
     rows = _fetch_historial_compras(q, d1, d2, _build_order_mysql_compras("fecha", "desc"))
 
     resp = HttpResponse(content_type="application/pdf")
-    resp["Content-Disposition"] = 'attachment; filename=\"historial_compras_proveedores.pdf\"'
+    resp["Content-Disposition"] = 'attachment; filename="historial_compras_proveedores.pdf"'
 
     p = canvas.Canvas(resp, pagesize=landscape(A4))
     width, height = landscape(A4)

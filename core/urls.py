@@ -6,8 +6,9 @@ from core.urls_debug import urls_debug_view
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-    # 👉 incluye TODO lo de accounts (ahí ya tienes path("", views_auth.home_view, name="home"))
+    # 👉 Incluye todo lo de la app principal
     path('', include('accounts.urls')),
 
+    # 👉 Página de debug opcional (si existe)
     path("debug/urls/", urls_debug_view, name="urls_debug"),
 ]

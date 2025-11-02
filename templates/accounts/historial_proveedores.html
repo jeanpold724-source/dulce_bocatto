@@ -48,7 +48,7 @@
     <tbody>
       {% for r in rows %}
         <tr>
-          <td class="text-nowrap">{{ r.fecha }}</td>
+          <td class="text-nowrap">{{ r.fecha|default:"—" }}</td>
           <td>{{ r.proveedor }}</td>
           <td class="text-muted">{{ r.telefono }}</td>
           <td class="text-muted">{{ r.direccion }}</td>
