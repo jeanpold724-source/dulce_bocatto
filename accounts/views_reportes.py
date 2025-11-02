@@ -759,3 +759,354 @@ def historial_proveedores_pdf(request):
     p.showPage()
     p.save()
     return resp
+
+
+# ================================================================
+# CU26 – Historial de entregas (repartidor / fechas / estado)
+#   Tablas asumidas:
+#     envio(id, pedido_id, repartidor_id, estado, comentarios, fecha_entrega?, created_at, updated_at)
+#     pedido(id, cliente_id)
+#     cliente(id, usuario_id)
+#     usuario(id, nombre, email)
+#   Si tus nombres difieren, ajusta los JOINs/columnas.
+# ================================================================
+def _build_order_mysql_entregas(sort: str, direction: str) -> str:
+    """
+    ORDER BY seguro para historial de entregas.
+    Campos ordenables: fecha | repartidor | cliente | estado
+    """
+    direction = (direction or "desc").lower()
+    if direction not in ("asc", "desc"):
+        direction = "desc"
+
+    allowed = {
+        "fecha": "fecha",
+        "repartidor": "repartidor",
+        "cliente": "cliente",
+        "estado": "estado",
+    }
+    col = allowed.get((sort or "").lower(), "fecha")
+    if direction == "asc":
+        return f"CASE WHEN {col} IS NULL THEN 1 ELSE 0 END, {col} ASC"
+    return f"{col} DESC"
+
+
+from django.db import connection
+
+def _fetch_historial_entregas(
+    q: str | None,
+    estado: str | None,
+    d1: str | None,
+    d2: str | None,
+    order_sql: str | None,
+):
+    """
+    Devuelve una fila por envío/entrega con joins a cliente.
+    Usa SOLO columnas que existen en tu BD:
+
+    envio:   id, pedido_id, estado, nombre_repartidor, telefono_repartidor, created_at
+    pedido:  id, cliente_id, metodo_envio, direccion_entrega, total, created_at
+    cliente: id, usuario_id, nombre
+    usuario: id, email
+
+    - q busca por nombre de repartidor (envio.nombre_repartidor) o por cliente (cliente.nombre / usuario.email)
+    - estado filtra por e.estado ('PENDIENTE','ENTREGADO')
+    - d1/d2 filtra por fecha usando COALESCE(e.created_at, p.created_at)
+    - order_sql debe venir de _build_order_mysql_entregas (safe)
+    """
+    where = ["1=1"]
+    params: list = []
+
+    # Fecha robusta (ambas columnas existen en tu script)
+    fecha_expr = "COALESCE(e.created_at, p.created_at)"
+
+    # Nombres “bonitos”
+    repartidor_expr = "COALESCE(NULLIF(TRIM(e.nombre_repartidor), ''), '—')"
+    cliente_expr    = "COALESCE(NULLIF(TRIM(c.nombre), ''), u.email)"
+
+    # Búsqueda libre
+    if q:
+        where.append(f"""(
+            {repartidor_expr} LIKE CONCAT('%%', %s, '%%')
+         OR {cliente_expr}    LIKE CONCAT('%%', %s, '%%')
+        )""")
+        params.extend([q, q])
+
+    # Estado de envío (según ENUM real)
+    if estado:
+        where.append("e.estado = %s")
+        params.append(estado)
+
+    # Filtro de fechas
+    if d1:
+        where.append(f"DATE({fecha_expr}) >= %s")
+        params.append(d1)
+    if d2:
+        where.append(f"DATE({fecha_expr}) <= %s")
+        params.append(d2)
+
+    where_sql = " AND ".join(where)
+
+    # Si no te pasaron un order_sql válido, por defecto fecha DESC
+    order_sql = order_sql or f"{fecha_expr} DESC"
+
+    sql = f"""
+        SELECT
+            e.id                      AS envio_id,
+            p.id                      AS pedido_id,
+            DATE_FORMAT({fecha_expr}, '%%Y-%%m-%%d %%H:%%i') AS fecha,
+            {repartidor_expr}         AS repartidor,
+            {cliente_expr}            AS cliente,
+            e.estado                  AS estado,
+            p.metodo_envio            AS metodo_envio,
+            p.direccion_entrega       AS direccion,
+            p.total                   AS total
+        FROM envio e
+        JOIN pedido  p ON p.id = e.pedido_id
+        LEFT JOIN cliente c ON c.id = p.cliente_id
+        LEFT JOIN usuario u ON u.id = c.usuario_id
+        WHERE {where_sql}
+        ORDER BY {order_sql}
+        LIMIT 1000
+    """
+
+    with connection.cursor() as cur:
+        cur.execute(sql, params)
+        cols = [c[0] for c in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+
+# --- Orden seguro para CU26 (usa SOLO alias del SELECT: fecha | repartidor | cliente | estado)
+def _build_order_mysql_entregas(sort: str, direction: str) -> str:
+    direction = (direction or "desc").lower()
+    if direction not in ("asc", "desc"):
+        direction = "desc"
+
+    allowed = {
+        "fecha": "fecha",
+        "repartidor": "repartidor",
+        "cliente": "cliente",
+        "estado": "estado",
+    }
+    col = allowed.get((sort or "").lower(), "fecha")
+
+    # Nulls al final en ascendente
+    if direction == "asc":
+        return f"CASE WHEN {col} IS NULL THEN 1 ELSE 0 END, {col} ASC"
+    return f"{col} DESC"
+
+
+from django.contrib.auth.decorators import login_required
+from .permissions import requiere_permiso  # ya lo usas en el archivo
+
+
+@login_required
+@requiere_permiso("ENVIO_READ")  # ajusta a tu perm si usas PEDIDO_READ
+def historial_entregas(request):
+    q   = (request.GET.get("q") or "").strip() or None
+    st  = (request.GET.get("estado") or "").strip() or None
+    d1  = (request.GET.get("d1") or "").strip() or None
+    d2  = (request.GET.get("d2") or "").strip() or None
+
+    sort = request.GET.get("sort", "fecha")
+    direction = request.GET.get("dir", "desc")
+    order_sql = _build_order_mysql_entregas(sort, direction)
+
+    rows = _fetch_historial_entregas(q, st, d1, d2, order_sql)
+
+    total_envios = len(rows)
+
+    def _next_dir(col: str) -> str:
+        return "asc" if (direction == "desc" or sort != col) else "desc"
+
+    context = {
+        "rows": rows,
+        "q": q or "",
+        "estado": st or "",
+        "d1": d1 or "",
+        "d2": d2 or "",
+        "sort": sort,
+        "dir": direction,
+        "total_envios": total_envios,
+        "next_dir_fecha": _next_dir("fecha"),
+        "next_dir_rep": _next_dir("repartidor"),
+        "next_dir_cli": _next_dir("cliente"),
+        "next_dir_est": _next_dir("estado"),
+        # estados de ejemplo: ajusta según tus choices reales
+        "ESTADOS": ["PENDIENTE", "EN_CAMINO", "ENTREGADO", "CANCELADO"],
+    }
+    return render(request, "accounts/historial_entregas.html", context)
+
+
+
+@login_required
+@requiere_permiso("PEDIDO_READ")  # o "ENVIO_READ" si tienes ese permiso
+def historial_entregas(request):
+    q  = (request.GET.get("q") or "").strip() or None
+    st = (request.GET.get("estado") or "").strip() or None
+    d1 = (request.GET.get("d1") or "").strip() or None
+    d2 = (request.GET.get("d2") or "").strip() or None
+
+    sort = request.GET.get("sort", "fecha")
+    direction = request.GET.get("dir", "desc")
+    order_sql = _build_order_mysql_entregas(sort, direction)
+
+    rows = _fetch_historial_entregas(q, st, d1, d2, order_sql)
+
+    # Totales para el pie / indicadores
+    total_envios = len(rows)
+    total_entregados = sum(1 for r in rows if (r.get("estado") or "").upper() == "ENTREGADO")
+
+    def _next_dir(col: str) -> str:
+        return "asc" if (direction == "desc" or sort != col) else "desc"
+
+    return render(request, "accounts/historial_entregas.html", {
+        "rows": rows,
+        "q": q or "",
+        "estado": st or "",
+        "d1": d1 or "",
+        "d2": d2 or "",
+        "sort": sort, "dir": direction,
+        "next_dir_fecha": _next_dir("fecha"),
+        "next_dir_rep": _next_dir("repartidor"),
+        "next_dir_cli": _next_dir("cliente"),
+        "next_dir_est": _next_dir("estado"),
+        "total_envios": total_envios,
+        "total_entregados": total_entregados,
+    })
+
+
+# ----------------- Exportaciones CU26 -----------------
+@login_required
+@requiere_permiso("PEDIDO_READ")
+def historial_entregas_csv(request):
+    q  = (request.GET.get("q") or "").strip() or None
+    st = (request.GET.get("estado") or "").strip() or None
+    d1 = (request.GET.get("d1") or "").strip() or None
+    d2 = (request.GET.get("d2") or "").strip() or None
+
+    rows = _fetch_historial_entregas(q, st, d1, d2, _build_order_mysql_entregas("fecha", "desc"))
+
+    resp = HttpResponse(content_type="text/csv; charset=utf-8")
+    resp["Content-Disposition"] = 'attachment; filename="historial_entregas.csv"'
+    w = csv.writer(resp)
+    w.writerow(["Envío", "Fecha", "Repartidor", "Cliente", "Pedido", "Estado", "Comentario"])
+    for r in rows:
+        w.writerow([
+            r.get("envio_id", ""),
+            r.get("fecha", "") or "",
+            r.get("repartidor", "") or "",
+            r.get("cliente", "") or "",
+            r.get("pedido_id", "") or "",
+            r.get("estado", "") or "",
+            (r.get("comentario") or "").replace("\n", " ").strip()
+        ])
+    return resp
+
+
+@login_required
+@requiere_permiso("PEDIDO_READ")
+def historial_entregas_html(request):
+    q  = (request.GET.get("q") or "").strip() or None
+    st = (request.GET.get("estado") or "").strip() or None
+    d1 = (request.GET.get("d1") or "").strip() or None
+    d2 = (request.GET.get("d2") or "").strip() or None
+
+    rows = _fetch_historial_entregas(q, st, d1, d2, _build_order_mysql_entregas("fecha", "desc"))
+
+    html = [
+        "<!doctype html><html><head><meta charset='utf-8'><title>Historial de entregas</title>",
+        "<style>table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:6px}th{background:#f6f6f6;text-align:left}</style>",
+        "</head><body>",
+        "<h2>Historial de entregas</h2>",
+        f"<p>Filtro: {q or '-'} | Estado: {st or '-'} | Desde: {d1 or '-'} | Hasta: {d2 or '-'}</p>",
+        "<table><thead><tr>",
+        "<th>#</th><th>Fecha</th><th>Repartidor</th><th>Cliente</th><th>Pedido</th><th>Estado</th><th>Comentario</th>",
+        "</tr></thead><tbody>",
+    ]
+    for r in rows:
+        html.append(
+            "<tr>"
+            f"<td>{r.get('envio_id','')}</td>"
+            f"<td>{r.get('fecha','')}</td>"
+            f"<td>{(r.get('repartidor') or '')}</td>"
+            f"<td>{(r.get('cliente') or '')}</td>"
+            f"<td>{r.get('pedido_id','')}</td>"
+            f"<td>{(r.get('estado') or '')}</td>"
+            f"<td>{(r.get('comentario') or '').replace('<','&lt;').replace('>','&gt;')}</td>"
+            "</tr>"
+        )
+    html.append("</tbody></table></body></html>")
+    return HttpResponse("".join(html), content_type="text/html; charset=utf-8")
+
+
+@login_required
+@requiere_permiso("PEDIDO_READ")
+def historial_entregas_pdf(request):
+    try:
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.units import cm
+    except Exception:
+        return HttpResponse(
+            "Exportación a PDF no disponible: instala 'reportlab' (pip install reportlab).",
+            content_type="text/plain; charset=utf-8",
+            status=200,
+        )
+
+    q  = (request.GET.get("q") or "").strip() or None
+    st = (request.GET.get("estado") or "").strip() or None
+    d1 = (request.GET.get("d1") or "").strip() or None
+    d2 = (request.GET.get("d2") or "").strip() or None
+
+    rows = _fetch_historial_entregas(q, st, d1, d2, _build_order_mysql_entregas("fecha", "desc"))
+
+    resp = HttpResponse(content_type="application/pdf")
+    resp["Content-Disposition"] = 'attachment; filename=\"historial_entregas.pdf\"'
+
+    p = canvas.Canvas(resp, pagesize=landscape(A4))
+    width, height = landscape(A4)
+    x = 2 * cm
+    y = height - 2 * cm
+
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(x, y, "Historial de entregas")
+    y -= 0.8 * cm
+    p.setFont("Helvetica", 10)
+    p.drawString(x, y, f"Filtro: {q or '-'} | Estado: {st or '-'} | Desde: {d1 or '-'} | Hasta: {d2 or '-'}")
+    y -= 1.0 * cm
+
+    headers = ["#", "Fecha", "Repartidor", "Cliente", "Pedido", "Estado", "Comentario"]
+    col_x = [x, x + 3.2*cm, x + 9.2*cm, x + 16.2*cm, x + 23*cm, x + 27*cm, x + 31*cm]
+
+    p.setFont("Helvetica-Bold", 10)
+    for i, h in enumerate(headers):
+        p.drawString(col_x[i], y, h)
+    y -= 0.6 * cm
+    p.setFont("Helvetica", 10)
+
+    for r in rows:
+        if y < 1.5 * cm:
+            p.showPage()
+            p.setFont("Helvetica-Bold", 10)
+            for i, h in enumerate(headers):
+                p.drawString(col_x[i], height - 2 * cm, h)
+            p.setFont("Helvetica", 10)
+            y = height - 2.6 * cm
+
+        vals = [
+            str(r.get("envio_id", "")),
+            r.get("fecha", "") or "",
+            (r.get("repartidor") or ""),
+            (r.get("cliente") or ""),
+            str(r.get("pedido_id", "")),
+            (r.get("estado") or ""),
+            (r.get("comentario") or "")[:80].replace("\n", " "),
+        ]
+        for i, v in enumerate(vals):
+            p.drawString(col_x[i], y, v[:60])
+        y -= 0.55 * cm
+
+    p.showPage()
+    p.save()
+    return resp

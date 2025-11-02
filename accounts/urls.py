@@ -129,3 +129,26 @@ router.register(r"api/roles",    accounts_api.RolViewSet)
 router.register(r"api/usuarios", accounts_api.UsuarioViewSet)
 
 urlpatterns += router.urls
+
+
+# CU26 – Historial de entregas
+from .views_reportes import (
+    historial_entregas,
+    historial_entregas_csv,
+    historial_entregas_html,
+    historial_entregas_pdf,
+)
+
+urlpatterns += [
+    path("reportes/entregas/", historial_entregas, name="historial_entregas"),
+    path("reportes/entregas/export.csv",  historial_entregas_csv,  name="historial_entregas_csv"),
+    path("reportes/entregas/export.html", historial_entregas_html, name="historial_entregas_html"),
+    path("reportes/entregas/export.pdf",  historial_entregas_pdf,  name="historial_entregas_pdf"),
+]
+
+
+from .views_reportes import historial_entregas
+
+urlpatterns += [
+    path("reportes/entregas/", historial_entregas, name="historial_entregas"),
+]

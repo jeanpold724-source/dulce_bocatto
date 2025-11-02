@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Historial de entregas</h2>
+
+<form class="row g-2 my-3" method="get">
+  <div class="col-md-4">
+    <input class="form-control" type="text" name="q" value="{{ q }}" placeholder="Buscar por repartidor o cliente">
+  </div>
+  <div class="col-md-3">
+    <select class="form-select" name="estado">
+      <option value="">-- Estado --</option>
+      {% for e in ESTADOS %}
+        <option value="{{ e }}" {% if estado == e %}selected{% endif %}>{{ e }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <input class="form-control" type="date" name="d1" value="{{ d1 }}" placeholder="Desde">
+  </div>
+  <div class="col-md-2">
+    <input class="form-control" type="date" name="d2" value="{{ d2 }}" placeholder="Hasta">
+  </div>
+  <div class="col-md-1 d-grid">
+    <button class="btn btn-primary">Filtrar</button>
+  </div>
+</form>
+
+<div class="small text-muted mb-2">
+  Entregas: <b>{{ total_envios }}</b>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th class="text-nowrap">
+          <a href="?q={{ q }}&estado={{ estado }}&d1={{ d1 }}&d2={{ d2 }}&sort=fecha&dir={{ next_dir_fecha }}">Fecha</a>
+        </th>
+        <th>
+          <a href="?q={{ q }}&estado={{ estado }}&d1={{ d1 }}&d2={{ d2 }}&sort=repartidor&dir={{ next_dir_rep }}">Repartidor</a>
+        </th>
+        <th>
+          <a href="?q={{ q }}&estado={{ estado }}&d1={{ d1 }}&d2={{ d2 }}&sort=cliente&dir={{ next_dir_cli }}">Cliente</a>
+        </th>
+        <th>Pedido</th>
+        <th>
+          <a href="?q={{ q }}&estado={{ estado }}&d1={{ d1 }}&d2={{ d2 }}&sort=estado&dir={{ next_dir_est }}">Estado</a>
+        </th>
+        <th>Comentario</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+        <tr>
+          <td class="text-nowrap">{{ r.fecha|default:"—" }}</td>
+          <td>{{ r.repartidor|default:"—" }}</td>
+          <td>{{ r.cliente|default:"—" }}</td>
+          <td>#{{ r.pedido_id }}</td>
+          <td>{{ r.estado }}</td>
+          <td class="text-muted">{{ r.comentario|default:"" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="text-muted">No hay registros.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
