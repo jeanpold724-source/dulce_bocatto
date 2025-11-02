@@ -12,20 +12,44 @@
   <div class="col-sm-3">
     <input class="form-control" type="date" name="d2" value="{{ d2 }}" placeholder="Hasta">
   </div>
+
+  {# mantiene el filtro si ya vienes filtrando por proveedor #}
+  {% if proveedor_id %}
+    <input type="hidden" name="proveedor_id" value="{{ proveedor_id }}">
+  {% endif %}
+
   <div class="col-sm-2 d-grid">
     <button class="btn btn-primary">Filtrar</button>
   </div>
 </form>
 
-<div class="d-flex gap-3 small text-muted mb-2">
+<div class="d-flex flex-wrap align-items-center gap-3 small text-muted mb-2">
   <span>Compras: <b>{{ total_compras }}</b></span>
   <span>Total: <b>{{ total_monto|floatformat:2 }} Bs.</b></span>
+
+  {% if proveedor_id %}
+    <span class="ms-auto">
+      <a class="btn btn-sm btn-outline-secondary"
+         href="?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}&sort={{ sort }}&dir={{ dir }}">
+        Quitar filtro de proveedor
+      </a>
+    </span>
+  {% endif %}
 </div>
 
 <div class="mb-3">
-  <a class="btn btn-outline-secondary btn-sm" href="{% url 'historial_proveedores_csv' %}?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}">Exportar CSV</a>
-  <a class="btn btn-outline-secondary btn-sm" href="{% url 'historial_proveedores_html' %}?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}">Exportar HTML</a>
-  <a class="btn btn-outline-secondary btn-sm" href="{% url 'historial_proveedores_pdf' %}?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}">Exportar PDF</a>
+  <a class="btn btn-outline-secondary btn-sm"
+     href="{% url 'historial_proveedores_csv' %}?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}&proveedor_id={{ proveedor_id }}">
+    Exportar CSV
+  </a>
+  <a class="btn btn-outline-secondary btn-sm"
+     href="{% url 'historial_proveedores_html' %}?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}&proveedor_id={{ proveedor_id }}">
+    Exportar HTML
+  </a>
+  <a class="btn btn-outline-secondary btn-sm"
+     href="{% url 'historial_proveedores_pdf' %}?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}&proveedor_id={{ proveedor_id }}">
+    Exportar PDF
+  </a>
 </div>
 
 <div class="table-responsive">
@@ -33,15 +57,21 @@
     <thead>
       <tr>
         <th class="text-nowrap">
-          <a href="?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}&sort=fecha&dir={{ next_dir_fecha }}">Fecha</a>
+          <a href="?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}&proveedor_id={{ proveedor_id }}&sort=fecha&dir={{ next_dir_fecha }}">
+            Fecha
+          </a>
         </th>
         <th>
-          <a href="?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}&sort=proveedor&dir={{ next_dir_proveedor }}">Proveedor</a>
+          <a href="?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}&proveedor_id={{ proveedor_id }}&sort=proveedor&dir={{ next_dir_proveedor }}">
+            Proveedor
+          </a>
         </th>
         <th>Teléfono</th>
         <th>Dirección</th>
         <th class="text-end">
-          <a href="?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}&sort=total&dir={{ next_dir_total }}">Total (Bs.)</a>
+          <a href="?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}&proveedor_id={{ proveedor_id }}&sort=total&dir={{ next_dir_total }}">
+            Total (Bs.)
+          </a>
         </th>
       </tr>
     </thead>
@@ -49,7 +79,14 @@
       {% for r in rows %}
         <tr>
           <td class="text-nowrap">{{ r.fecha|default:"—" }}</td>
-          <td>{{ r.proveedor }}</td>
+
+          {# 👉 Al hacer clic en el proveedor, se filtra por su ID #}
+          <td>
+            <a href="?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}&sort={{ sort }}&dir={{ dir }}&proveedor_id={{ r.proveedor_id }}">
+              {{ r.proveedor }}
+            </a>
+          </td>
+
           <td class="text-muted">{{ r.telefono }}</td>
           <td class="text-muted">{{ r.direccion }}</td>
           <td class="text-end">{{ r.total|floatformat:2 }}</td>

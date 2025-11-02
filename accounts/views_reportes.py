@@ -13,6 +13,11 @@ from django.contrib.auth.decorators import login_required
 # Decorador de permisos propio (ajusta si no lo usas)
 from .permissions import requiere_permiso
 
+# arriba del archivo
+from django.db.models import Sum
+from .models_db import Compra
+
+
 
 # ================================================================
 # Helpers comunes
@@ -498,44 +503,49 @@ def ventas_diarias_pdf(request):
 
 # ================================================================
 # CU25 – Historial de compras a proveedores
-#   Tablas usadas (ajusta nombres si difieren):
+#   Tablas usadas:
 #     proveedor(id, nombre, telefono, direccion)
 #     compra(id, proveedor_id, fecha, total)
 # ================================================================
 def _build_order_mysql_compras(sort: str, direction: str) -> str:
-    """
-    ORDER BY seguro (whitelist) para compras a proveedores.
-    Campos: fecha | proveedor | total
-    """
     direction = (direction or "desc").lower()
     if direction not in ("asc", "desc"):
         direction = "desc"
-
     allowed = {
         "fecha": "c.fecha",
         "proveedor": "pr.nombre",
         "total": "c.total",
     }
     col = allowed.get((sort or "").lower(), "c.fecha")
-
     if direction == "asc":
         return f"CASE WHEN {col} IS NULL THEN 1 ELSE 0 END, {col} ASC"
     return f"{col} DESC"
 
 
-def _fetch_historial_compras(q: str | None, d1: str | None, d2: str | None, order_sql: str):
+def _fetch_historial_compras(
+    q: str | None,
+    d1: str | None,
+    d2: str | None,
+    order_sql: str,
+    proveedor_id: str | None = None,
+):
     """
     Devuelve una fila por compra. Filtros:
-      - q: coincide con nombre/telefono/direccion del proveedor (LIKE)
+      - q: LIKE sobre nombre/teléfono/dirección del proveedor
       - d1/d2: rango por DATE(c.fecha)
+      - proveedor_id: restringe a un proveedor concreto
     """
     where = ["1=1"]
     params: list = []
 
+    if proveedor_id:
+        where.append("c.proveedor_id = %s")
+        params.append(proveedor_id)
+
     if q:
         where.append("""(
-            pr.nombre   LIKE CONCAT('%%', %s, '%%')
-         OR pr.telefono LIKE CONCAT('%%', %s, '%%')
+            pr.nombre    LIKE CONCAT('%%', %s, '%%')
+         OR pr.telefono  LIKE CONCAT('%%', %s, '%%')
          OR pr.direccion LIKE CONCAT('%%', %s, '%%')
         )""")
         params.extend([q, q, q])
@@ -553,10 +563,11 @@ def _fetch_historial_compras(q: str | None, d1: str | None, d2: str | None, orde
         SELECT
             c.id AS compra_id,
             DATE_FORMAT(c.fecha, '%%Y-%%m-%%d %%H:%%i') AS fecha,
-            pr.nombre   AS proveedor,
-            pr.telefono AS telefono,
+            pr.id        AS proveedor_id,   -- 👈 necesario para filtrar desde la UI
+            pr.nombre    AS proveedor,
+            pr.telefono  AS telefono,
             pr.direccion AS direccion,
-            c.total     AS total
+            c.total      AS total
         FROM compra c
         JOIN proveedor pr ON pr.id = c.proveedor_id
         WHERE {where_sql}
@@ -571,19 +582,22 @@ def _fetch_historial_compras(q: str | None, d1: str | None, d2: str | None, orde
 
 
 @login_required
+@requiere_permiso("COMPRA_READ")
 def historial_proveedores(request):
     q  = (request.GET.get("q") or "").strip() or None
     d1 = (request.GET.get("d1") or "").strip() or None
     d2 = (request.GET.get("d2") or "").strip() or None
+    proveedor_id = (request.GET.get("proveedor_id") or "").strip() or None
 
     sort = request.GET.get("sort", "fecha")
     direction = request.GET.get("dir", "desc")
     order_sql = _build_order_mysql_compras(sort, direction)
 
-    rows = _fetch_historial_compras(q, d1, d2, order_sql)
+    # usa el fetch SQL para que orden y exports sean consistentes
+    rows = _fetch_historial_compras(q, d1, d2, order_sql, proveedor_id=proveedor_id)
 
     total_compras = len(rows)
-    total_monto   = sum(Decimal(r["total"] or 0) for r in rows)
+    total_monto   = sum(Decimal(r.get("total") or 0) for r in rows)
 
     def _next_dir(col: str) -> str:
         return "asc" if (direction == "desc" or sort != col) else "desc"
@@ -596,7 +610,9 @@ def historial_proveedores(request):
             "q": q or "",
             "d1": d1 or "",
             "d2": d2 or "",
-            "sort": sort, "dir": direction,
+            "proveedor_id": proveedor_id or "",
+            "sort": sort,
+            "dir": direction,
             "total_compras": total_compras,
             "total_monto": total_monto,
             "next_dir_fecha": _next_dir("fecha"),
@@ -611,8 +627,12 @@ def historial_proveedores_csv(request):
     q  = (request.GET.get("q") or "").strip() or None
     d1 = (request.GET.get("d1") or "").strip() or None
     d2 = (request.GET.get("d2") or "").strip() or None
+    proveedor_id = (request.GET.get("proveedor_id") or "").strip() or None
 
-    rows = _fetch_historial_compras(q, d1, d2, _build_order_mysql_compras("fecha", "desc"))
+    rows = _fetch_historial_compras(
+        q, d1, d2, _build_order_mysql_compras("fecha", "desc"),
+        proveedor_id=proveedor_id,
+    )
 
     resp = HttpResponse(content_type="text/csv; charset=utf-8")
     resp["Content-Disposition"] = 'attachment; filename="historial_compras_proveedores.csv"'
@@ -635,15 +655,19 @@ def historial_proveedores_html(request):
     q  = (request.GET.get("q") or "").strip() or None
     d1 = (request.GET.get("d1") or "").strip() or None
     d2 = (request.GET.get("d2") or "").strip() or None
+    proveedor_id = (request.GET.get("proveedor_id") or "").strip() or None
 
-    rows = _fetch_historial_compras(q, d1, d2, _build_order_mysql_compras("fecha", "desc"))
+    rows = _fetch_historial_compras(
+        q, d1, d2, _build_order_mysql_compras("fecha", "desc"),
+        proveedor_id=proveedor_id,
+    )
 
     html = [
         "<!doctype html><html><head><meta charset='utf-8'><title>Historial de compras a proveedores</title>",
         "<style>table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:6px}th{background:#f6f6f6;text-align:left}</style>",
         "</head><body>",
         "<h2>Historial de compras a proveedores</h2>",
-        f"<p>Filtro q: {q or '-'} | Desde: {d1 or '-'} | Hasta: {d2 or '-'}</p>",
+        f"<p>Filtro q: {q or '-'} | Desde: {d1 or '-'} | Hasta: {d2 or '-'} | Proveedor: {proveedor_id or '-'}</p>",
         "<table><thead><tr>",
         "<th>#</th><th>Fecha</th><th>Proveedor</th><th>Teléfono</th><th>Dirección</th><th>Total (Bs.)</th>",
         "</tr></thead><tbody>",
@@ -661,9 +685,7 @@ def historial_proveedores_html(request):
         )
     html.append("</tbody></table></body></html>")
 
-    resp = HttpResponse("".join(html), content_type="text/html; charset=utf-8")
-    resp["Content-Disposition"] = 'attachment; filename="historial_compras_proveedores.html"'
-    return resp
+    return HttpResponse("".join(html), content_type="text/html; charset=utf-8")
 
 
 @login_required
@@ -682,8 +704,12 @@ def historial_proveedores_pdf(request):
     q  = (request.GET.get("q") or "").strip() or None
     d1 = (request.GET.get("d1") or "").strip() or None
     d2 = (request.GET.get("d2") or "").strip() or None
+    proveedor_id = (request.GET.get("proveedor_id") or "").strip() or None
 
-    rows = _fetch_historial_compras(q, d1, d2, _build_order_mysql_compras("fecha", "desc"))
+    rows = _fetch_historial_compras(
+        q, d1, d2, _build_order_mysql_compras("fecha", "desc"),
+        proveedor_id=proveedor_id,
+    )
 
     resp = HttpResponse(content_type="application/pdf")
     resp["Content-Disposition"] = 'attachment; filename="historial_compras_proveedores.pdf"'
@@ -697,7 +723,7 @@ def historial_proveedores_pdf(request):
     p.drawString(x, y, "Historial de compras a proveedores")
     y -= 0.8 * cm
     p.setFont("Helvetica", 10)
-    p.drawString(x, y, f"Filtro q: {q or '-'}  |  Desde: {d1 or '-'}  |  Hasta: {d2 or '-'}")
+    p.drawString(x, y, f"Filtro q: {q or '-'}  |  Desde: {d1 or '-'}  |  Hasta: {d2 or '-'}  |  Proveedor: {proveedor_id or '-'}")
     y -= 1.0 * cm
 
     headers = ["#", "Fecha", "Proveedor", "Teléfono", "Dirección", "Total (Bs.)"]
