@@ -9,6 +9,7 @@ from decimal import Decimal
 from .models_db import Usuario, UsuarioRol, RolPermiso, Pedido
 
 
+
 # -------------------------------------------------
 # Permisos por código (lo que ya tenías)
 # -------------------------------------------------
@@ -35,6 +36,31 @@ def requiere_permiso(codigo_permiso):
             return view(request, *args, **kwargs)
         return inner
     return wrapper
+
+
+# -------------------------------------------------
+# Nuevo decorador: permite acceso si tiene alguno de varios permisos
+# -------------------------------------------------
+def permission_required_any(*perms):
+    """
+    Permite acceso si el usuario es staff/superuser o tiene al menos uno de los permisos dados.
+    Uso:
+        @permission_required_any("accounts.view_pedido", "accounts.view_pago")
+        def mi_vista(...):
+            ...
+    """
+    def decorator(view_func):
+        @login_required
+        def _wrapped(request, *args, **kwargs):
+            user = request.user
+            if user.is_superuser or user.is_staff:
+                return view_func(request, *args, **kwargs)
+            if any(user.has_perm(p) for p in perms):
+                return view_func(request, *args, **kwargs)
+            raise PermissionDenied("No tienes permiso para acceder a esta vista.")
+        return _wrapped
+    return decorator
+
 
 
 # -------------------------------------------------

@@ -94,6 +94,11 @@
           <a class="btn btn-sm btn-outline-light me-2" href="{% url 'login' %}">Iniciar sesión</a>
           <a class="btn btn-sm btn-outline-light" href="{% url 'register' %}">Regístrate</a>
         {% endif %}
+
+        {% if request.user.is_authenticated and perms %}
+          <a class="btn btn-link" href="{% url 'historial_clientes' %}">Historial de Pedidos</a>
+        {% endif %}
+
       </div>
     </div>
   </nav>

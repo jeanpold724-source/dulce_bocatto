@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Historial de compras</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial; margin:24px;}
+    table{width:100%; border-collapse:collapse; font-size:12px;}
+    th,td{border:1px solid #ddd; padding:6px 8px;}
+    th{background:#f3f3f3; text-align:left;}
+    .right{text-align:right}
+    .muted{color:#666; font-size:12px}
+    @media print {.no-print{display:none}}
+  </style>
+</head>
+<body>
+  <h3>Historial de compras de clientes</h3>
+  <div class="muted">
+    {% if q %}q={{ q }} &nbsp;{% endif %}
+    {% if f_ini %}desde={{ f_ini }} &nbsp;{% endif %}
+    {% if f_fin %}hasta={{ f_fin }} &nbsp;{% endif %}
+    {% if estado %}estado={{ estado }}{% endif %}
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Cliente</th><th>Creado</th><th>Estado</th><th class="right">Total (Bs.)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>{{ r.pedido_id }}</td>
+        <td>{{ r.cliente }}</td>
+        <td>{{ r.creado|date:"Y-m-d H:i" }}</td>
+        <td>{{ r.estado }}</td>
+        <td class="right">{{ r.total|floatformat:2 }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="muted">Sin resultados.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p class="no-print" style="margin-top:12px">
+    <button onclick="window.print()">Imprimir</button>
+  </p>
+</body>
+</html>

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Historial de compras de clientes</h2>
+
+<form class="row g-2 my-3" method="get">
+  <div class="col-sm-4">
+    <input class="form-control" name="q" value="{{ q }}" placeholder="Buscar por nombre o email">
+  </div>
+  <div class="col-sm-3">
+    <input class="form-control" type="date" name="d1" value="{{ d1 }}">
+  </div>
+  <div class="col-sm-3">
+    <input class="form-control" type="date" name="d2" value="{{ d2 }}">
+  </div>
+  <div class="col-sm-2 d-grid">
+    <button class="btn btn-primary">Filtrar</button>
+  </div>
+</form>
+
+<div class="d-flex gap-3 small text-muted mb-2">
+  <span>Pedidos listados: <b>{{ rows|length }}</b></span>
+</div>
+
+<div class="mb-3">
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'historial_clientes_csv' %}?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}">Exportar CSV</a>
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'historial_clientes_html' %}?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}">Exportar HTML</a>
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'historial_clientes_pdf' %}?q={{ q }}&d1={{ d1 }}&d2={{ d2 }}">Exportar PDF</a>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th>
+          {# calculo del siguiente dir para 'cliente' #}
+          <a href="?sort=cliente&dir={% if sort == 'cliente' and dir == 'asc' %}desc{% else %}asc{% endif %}&q={{ q }}&d1={{ d1 }}&d2={{ d2 }}">
+            Cliente
+            {% if sort == 'cliente' %}
+              {% if dir == 'asc' %}▲{% else %}▼{% endif %}
+            {% endif %}
+          </a>
+        </th>
+        <th>Email</th>
+        <th>
+          <a href="?sort=creado&dir={% if sort == 'creado' and dir == 'asc' %}desc{% else %}asc{% endif %}&q={{ q }}&d1={{ d1 }}&d2={{ d2 }}">
+            Creado
+            {% if sort == 'creado' %}
+              {% if dir == 'asc' %}▲{% else %}▼{% endif %}
+            {% endif %}
+          </a>
+        </th>
+        <th>
+          <a href="?sort=total&dir={% if sort == 'total' and dir == 'asc' %}desc{% else %}asc{% endif %}&q={{ q }}&d1={{ d1 }}&d2={{ d2 }}">
+            Total (Bs.)
+            {% if sort == 'total' %}
+              {% if dir == 'asc' %}▲{% else %}▼{% endif %}
+            {% endif %}
+          </a>
+        </th>
+        <th>
+          <a href="?sort=estado&dir={% if sort == 'estado' and dir == 'asc' %}desc{% else %}asc{% endif %}&q={{ q }}&d1={{ d1 }}&d2={{ d2 }}">
+            Estado
+            {% if sort == 'estado' %}
+              {% if dir == 'asc' %}▲{% else %}▼{% endif %}
+            {% endif %}
+          </a>
+        </th>
+        <th>Pagado (Bs.)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+        <tr>
+          <td>{{ r.cliente }}</td>
+          <td>{{ r.cliente_email }}</td>
+          <td>{{ r.creado }}</td>
+          <td>{{ r.total|floatformat:2 }}</td>
+          <td>{{ r.estado }}</td>
+          <td>{{ r.pagado|floatformat:2 }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="text-muted">Sin resultados.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

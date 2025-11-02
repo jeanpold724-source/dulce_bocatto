@@ -1,4 +1,3 @@
-# accounts/apps.py
 from django.apps import AppConfig
 
 class AccountsConfig(AppConfig):
@@ -6,6 +5,4 @@ class AccountsConfig(AppConfig):
     name = "accounts"
 
     def ready(self):
-        from . import signals  # noqa
-
-
+        from . import signals  # importa para registrar receivers

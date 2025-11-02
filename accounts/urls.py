@@ -1,12 +1,11 @@
 # accounts/urls.py  (PEGA Y REEMPLAZA TODO)
-
 from django.urls import path
 from django.contrib.auth.views import LogoutView
 from rest_framework.routers import DefaultRouter
 
-# Import modular: auth separado del resto
+# Import modular: separa vistas por área
 from . import (
-    views,               # catálogo, pedidos básicos, bitácora, proveedores, insumos, etc.
+    views,               # catálogo, bitácora, proveedores, insumos, etc.
     views_auth,          # login, register, perfil, editar perfil, cambiar password
     views_inventario,
     views_compras,
@@ -14,6 +13,14 @@ from . import (
     views_facturas,
     views_envios,
     views_pagos,         # Stripe
+)
+
+# CU18 – Historial de compras de clientes (importa funciones directamente)
+from .views_reportes import (
+    historial_clientes,
+    historial_clientes_csv,
+    historial_clientes_pdf,
+    historial_clientes_html,
 )
 
 # ---------- Web ----------
@@ -29,14 +36,14 @@ urlpatterns = [
     path("perfil/editar/", views_auth.perfil_editar, name="perfil_editar"),
     path("perfil/cambiar-password/", views_auth.cambiar_password, name="cambiar_password"),
 
-    # Catálogo y pedido (estas viven en views.py)
+    # Catálogo y pedido
     path("catalogo/", views.catalogo_view, name="catalogo"),
     path("pedido/<int:sabor_id>/", views.crear_pedido, name="crear_pedido"),
     path("cancelar-pedido/<int:pedido_id>/", views.cancelar_pedido, name="cancelar_pedido"),
     path("confirmar-pedido/<int:pedido_id>/", views.confirmar_pedido, name="confirmar_pedido"),
     path("bitacora/", views.bitacora_view, name="bitacora"),
 
-    # Proveedores (CU06)
+    # Proveedores
     path("proveedores/", views.proveedores_list, name="proveedores_list"),
     path("proveedores/nuevo/", views.proveedor_create, name="proveedor_create"),
     path("proveedores/<int:pk>/editar/", views.proveedor_update, name="proveedor_update"),
@@ -53,7 +60,7 @@ urlpatterns = [
     path("inventario/kardex/", views_inventario.kardex_list, name="kardex_list"),
     path("inventario/kardex/<int:pk>/", views_inventario.kardex_por_insumo, name="kardex_por_insumo"),
 
-    # Compras (CU14)
+    # Compras
     path("compras/", views_compras.compras_list, name="compras_list"),
     path("compras/nueva/", views_compras.compra_crear, name="compra_crear"),
     path("compras/<int:compra_id>/", views_compras.compra_detalle, name="compra_detalle"),
@@ -61,12 +68,15 @@ urlpatterns = [
 
     # Pedidos
     path("pedidos/", views_pedidos.pedidos_pendientes, name="pedidos_pendientes"),
+    path("pedidos/confirmados/", views_pedidos.pedidos_confirmados, name="pedidos_confirmados"),
     path("pedidos/<int:pedido_id>/", views_pedidos.pedido_detalle, name="pedido_detalle"),
     path("pedidos/<int:pedido_id>/editar/", views_pedidos.pedido_editar, name="pedido_editar"),
-    path("pedidos/confirmados/", views_pedidos.pedidos_confirmados, name="pedidos_confirmados"),
 
-    # Registrar pago manual (CU16 existente)
+    # Pagos (manual CU16 + Stripe)
     path("pedidos/<int:pedido_id>/pago/", views_pedidos.pago_registrar, name="pago_registrar"),
+    path("pago/<int:pedido_id>/", views_pagos.crear_checkout_session, name="crear_checkout"),
+    path("pagos/success/<int:pedido_id>/", views_pagos.pago_exitoso, name="pago_exitoso"),
+    path("pagos/cancel/<int:pedido_id>/", views_pagos.pago_cancelado, name="pago_cancelado"),
 
     # Facturas (CU17)
     path("facturas/", views_facturas.factura_list, name="factura_list"),
@@ -78,11 +88,11 @@ urlpatterns = [
     path("envios/<int:pedido_id>/", views_envios.envio_crear_editar, name="envio_crear_editar"),
     path("envios/<int:pedido_id>/entregado/", views_envios.envio_marcar_entregado, name="envio_marcar_entregado"),
 
-    # Stripe Checkout (CU16 – pasarela)
-    # OJO: usa la función que realmente tengas en views_pagos (crear_checkout_session o crear_checkout)
-    path("pago/<int:pedido_id>/", views_pagos.crear_checkout_session, name="crear_checkout"),
-    path("pagos/success/<int:pedido_id>/", views_pagos.pago_exitoso, name="pago_exitoso"),
-    path("pagos/cancel/<int:pedido_id>/", views_pagos.pago_cancelado, name="pago_cancelado"),
+    # CU18 – Historial de compras + exportaciones
+    path("clientes/historial/", historial_clientes, name="historial_clientes"),
+    path("clientes/historial/export.csv", historial_clientes_csv, name="historial_clientes_csv"),
+    path("clientes/historial/export.pdf", historial_clientes_pdf, name="historial_clientes_pdf"),
+    path("clientes/historial/export.html", historial_clientes_html, name="historial_clientes_html"),
 ]
 
 # ---------- API (CU04) ----------
