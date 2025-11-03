@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Reportes de ventas{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Reportes de ventas</h1>
+
+<form method="get" class="row g-2 mb-3">
+  <div class="col-md-4">
+    <input name="q" value="{{ q }}" class="form-control" placeholder="Buscar por cliente o producto">
+  </div>
+
+  <div class="col-md-3">
+    <select name="group" class="form-select">
+      <option value="dia"     {% if group == "dia" %}selected{% endif %}>Agrupar por día</option>
+      <option value="cliente" {% if group == "cliente" %}selected{% endif %}>Agrupar por cliente</option>
+      <option value="sabor"   {% if group == "sabor" %}selected{% endif %}>Agrupar por sabor/producto</option>
+    </select>
+  </div>
+
+  <div class="col-md-2">
+    <input type="date" name="d1" value="{{ d1 }}" class="form-control" placeholder="Desde">
+  </div>
+  <div class="col-md-2">
+    <input type="date" name="d2" value="{{ d2 }}" class="form-control" placeholder="Hasta">
+  </div>
+
+  <div class="col-md-1 d-grid">
+    <button class="btn btn-primary">Filtrar</button>
+  </div>
+</form>
+
+<div class="mb-3 d-flex gap-2">
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'ventas_reportes_csv' %}?group={{ group }}&q={{ q }}&d1={{ d1 }}&d2={{ d2 }}">Exportar CSV</a>
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'ventas_reportes_html' %}?group={{ group }}&q={{ q }}&d1={{ d1 }}&d2={{ d2 }}">Exportar HTML</a>
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'ventas_reportes_pdf' %}?group={{ group }}&q={{ q }}&d1={{ d1 }}&d2={{ d2 }}">Exportar PDF</a>
+</div>
+
+<table class="table table-sm align-middle">
+  <thead>
+    <tr>
+      <th>{% if group == "dia" %}Fecha{% elif group == "cliente" %}Cliente{% else %}Producto{% endif %}</th>
+      <th class="text-end">Ventas</th>
+      <th class="text-end">Total (Bs.)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.etiqueta }}</td>
+      <td class="text-end">{{ r.ventas }}</td>
+      <td class="text-end">{{ r.total|floatformat:2 }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="3" class="text-center text-muted">Sin datos para los filtros seleccionados.</td></tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr>
+      <th class="text-end">TOTAL</th>
+      <th class="text-end">{{ ventas_total }}</th>
+      <th class="text-end">{{ total_general|floatformat:2 }}</th>
+    </tr>
+  </tfoot>
+</table>
+{% endblock %}

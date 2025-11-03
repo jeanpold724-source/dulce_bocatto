@@ -9,14 +9,14 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.db import connection
 from django.contrib.auth.decorators import login_required
+from django.utils.timezone import now
 
-# Decorador de permisos propio (ajusta si no lo usas)
+# Decorador de permisos propio (ajústalo si no lo usas)
 from .permissions import requiere_permiso
 
-# arriba del archivo
-from django.db.models import Sum
-from .models_db import Compra
-
+# Si no usas estos, puedes quitarlos
+from django.db.models import Sum  # noqa: F401
+from .models_db import Compra     # noqa: F401
 
 
 # ================================================================
@@ -503,9 +503,6 @@ def ventas_diarias_pdf(request):
 
 # ================================================================
 # CU25 – Historial de compras a proveedores
-#   Tablas usadas:
-#     proveedor(id, nombre, telefono, direccion)
-#     compra(id, proveedor_id, fecha, total)
 # ================================================================
 def _build_order_mysql_compras(sort: str, direction: str) -> str:
     direction = (direction or "desc").lower()
@@ -530,10 +527,7 @@ def _fetch_historial_compras(
     proveedor_id: str | None = None,
 ):
     """
-    Devuelve una fila por compra. Filtros:
-      - q: LIKE sobre nombre/teléfono/dirección del proveedor
-      - d1/d2: rango por DATE(c.fecha)
-      - proveedor_id: restringe a un proveedor concreto
+    Devuelve una fila por compra.
     """
     where = ["1=1"]
     params: list = []
@@ -563,7 +557,7 @@ def _fetch_historial_compras(
         SELECT
             c.id AS compra_id,
             DATE_FORMAT(c.fecha, '%%Y-%%m-%%d %%H:%%i') AS fecha,
-            pr.id        AS proveedor_id,   -- 👈 necesario para filtrar desde la UI
+            pr.id        AS proveedor_id,
             pr.nombre    AS proveedor,
             pr.telefono  AS telefono,
             pr.direccion AS direccion,
@@ -593,7 +587,6 @@ def historial_proveedores(request):
     direction = request.GET.get("dir", "desc")
     order_sql = _build_order_mysql_compras(sort, direction)
 
-    # usa el fetch SQL para que orden y exports sean consistentes
     rows = _fetch_historial_compras(q, d1, d2, order_sql, proveedor_id=proveedor_id)
 
     total_compras = len(rows)
@@ -763,18 +756,8 @@ def historial_proveedores_pdf(request):
 
 # ================================================================
 # CU26 – Historial de entregas (repartidor / fechas / estado)
-#   Tablas asumidas:
-#     envio(id, pedido_id, repartidor_id, estado, comentarios, fecha_entrega?, created_at, updated_at)
-#     pedido(id, cliente_id)
-#     cliente(id, usuario_id)
-#     usuario(id, nombre, email)
-#   Si tus nombres difieren, ajusta los JOINs/columnas.
 # ================================================================
 def _build_order_mysql_entregas(sort: str, direction: str) -> str:
-    """
-    ORDER BY seguro para historial de entregas.
-    Campos ordenables: fecha | repartidor | cliente | estado
-    """
     direction = (direction or "desc").lower()
     if direction not in ("asc", "desc"):
         direction = "desc"
@@ -791,8 +774,6 @@ def _build_order_mysql_entregas(sort: str, direction: str) -> str:
     return f"{col} DESC"
 
 
-from django.db import connection
-
 def _fetch_historial_entregas(
     q: str | None,
     estado: str | None,
@@ -802,29 +783,15 @@ def _fetch_historial_entregas(
 ):
     """
     Devuelve una fila por envío/entrega con joins a cliente.
-    Usa SOLO columnas que existen en tu BD:
-
-    envio:   id, pedido_id, estado, nombre_repartidor, telefono_repartidor, created_at
-    pedido:  id, cliente_id, metodo_envio, direccion_entrega, total, created_at
-    cliente: id, usuario_id, nombre
-    usuario: id, email
-
-    - q busca por nombre de repartidor (envio.nombre_repartidor) o por cliente (cliente.nombre / usuario.email)
-    - estado filtra por e.estado ('PENDIENTE','ENTREGADO')
-    - d1/d2 filtra por fecha usando COALESCE(e.created_at, p.created_at)
-    - order_sql debe venir de _build_order_mysql_entregas (safe)
+    Ajustado a columnas que tienes en BD.
     """
     where = ["1=1"]
     params: list = []
 
-    # Fecha robusta (ambas columnas existen en tu script)
-    fecha_expr = "COALESCE(e.created_at, p.created_at)"
-
-    # Nombres “bonitos”
+    fecha_expr = "p.created_at"
     repartidor_expr = "COALESCE(NULLIF(TRIM(e.nombre_repartidor), ''), '—')"
     cliente_expr    = "COALESCE(NULLIF(TRIM(c.nombre), ''), u.email)"
 
-    # Búsqueda libre
     if q:
         where.append(f"""(
             {repartidor_expr} LIKE CONCAT('%%', %s, '%%')
@@ -832,12 +799,10 @@ def _fetch_historial_entregas(
         )""")
         params.extend([q, q])
 
-    # Estado de envío (según ENUM real)
     if estado:
         where.append("e.estado = %s")
         params.append(estado)
 
-    # Filtro de fechas
     if d1:
         where.append(f"DATE({fecha_expr}) >= %s")
         params.append(d1)
@@ -846,9 +811,7 @@ def _fetch_historial_entregas(
         params.append(d2)
 
     where_sql = " AND ".join(where)
-
-    # Si no te pasaron un order_sql válido, por defecto fecha DESC
-    order_sql = order_sql or f"{fecha_expr} DESC"
+    order_sql = order_sql or "fecha DESC"
 
     sql = f"""
         SELECT
@@ -860,7 +823,8 @@ def _fetch_historial_entregas(
             e.estado                  AS estado,
             p.metodo_envio            AS metodo_envio,
             p.direccion_entrega       AS direccion,
-            p.total                   AS total
+            p.total                   AS total,
+            NULLIF(TRIM(e.comentarios), '') AS comentario
         FROM envio e
         JOIN pedido  p ON p.id = e.pedido_id
         LEFT JOIN cliente c ON c.id = p.cliente_id
@@ -876,71 +840,8 @@ def _fetch_historial_entregas(
         return [dict(zip(cols, row)) for row in cur.fetchall()]
 
 
-# --- Orden seguro para CU26 (usa SOLO alias del SELECT: fecha | repartidor | cliente | estado)
-def _build_order_mysql_entregas(sort: str, direction: str) -> str:
-    direction = (direction or "desc").lower()
-    if direction not in ("asc", "desc"):
-        direction = "desc"
-
-    allowed = {
-        "fecha": "fecha",
-        "repartidor": "repartidor",
-        "cliente": "cliente",
-        "estado": "estado",
-    }
-    col = allowed.get((sort or "").lower(), "fecha")
-
-    # Nulls al final en ascendente
-    if direction == "asc":
-        return f"CASE WHEN {col} IS NULL THEN 1 ELSE 0 END, {col} ASC"
-    return f"{col} DESC"
-
-
-from django.contrib.auth.decorators import login_required
-from .permissions import requiere_permiso  # ya lo usas en el archivo
-
-
 @login_required
-@requiere_permiso("ENVIO_READ")  # ajusta a tu perm si usas PEDIDO_READ
-def historial_entregas(request):
-    q   = (request.GET.get("q") or "").strip() or None
-    st  = (request.GET.get("estado") or "").strip() or None
-    d1  = (request.GET.get("d1") or "").strip() or None
-    d2  = (request.GET.get("d2") or "").strip() or None
-
-    sort = request.GET.get("sort", "fecha")
-    direction = request.GET.get("dir", "desc")
-    order_sql = _build_order_mysql_entregas(sort, direction)
-
-    rows = _fetch_historial_entregas(q, st, d1, d2, order_sql)
-
-    total_envios = len(rows)
-
-    def _next_dir(col: str) -> str:
-        return "asc" if (direction == "desc" or sort != col) else "desc"
-
-    context = {
-        "rows": rows,
-        "q": q or "",
-        "estado": st or "",
-        "d1": d1 or "",
-        "d2": d2 or "",
-        "sort": sort,
-        "dir": direction,
-        "total_envios": total_envios,
-        "next_dir_fecha": _next_dir("fecha"),
-        "next_dir_rep": _next_dir("repartidor"),
-        "next_dir_cli": _next_dir("cliente"),
-        "next_dir_est": _next_dir("estado"),
-        # estados de ejemplo: ajusta según tus choices reales
-        "ESTADOS": ["PENDIENTE", "EN_CAMINO", "ENTREGADO", "CANCELADO"],
-    }
-    return render(request, "accounts/historial_entregas.html", context)
-
-
-
-@login_required
-@requiere_permiso("PEDIDO_READ")  # o "ENVIO_READ" si tienes ese permiso
+@requiere_permiso("PEDIDO_READ")  # o ENVIO_READ si lo tienes
 def historial_entregas(request):
     q  = (request.GET.get("q") or "").strip() or None
     st = (request.GET.get("estado") or "").strip() or None
@@ -953,7 +854,6 @@ def historial_entregas(request):
 
     rows = _fetch_historial_entregas(q, st, d1, d2, order_sql)
 
-    # Totales para el pie / indicadores
     total_envios = len(rows)
     total_entregados = sum(1 for r in rows if (r.get("estado") or "").upper() == "ENTREGADO")
 
@@ -973,6 +873,7 @@ def historial_entregas(request):
         "next_dir_est": _next_dir("estado"),
         "total_envios": total_envios,
         "total_entregados": total_entregados,
+        "ESTADOS": ["PENDIENTE", "EN_CAMINO", "ENTREGADO", "CANCELADO"],
     })
 
 
@@ -1062,7 +963,7 @@ def historial_entregas_pdf(request):
     rows = _fetch_historial_entregas(q, st, d1, d2, _build_order_mysql_entregas("fecha", "desc"))
 
     resp = HttpResponse(content_type="application/pdf")
-    resp["Content-Disposition"] = 'attachment; filename=\"historial_entregas.pdf\"'
+    resp["Content-Disposition"] = 'attachment; filename="historial_entregas.pdf"'
 
     p = canvas.Canvas(resp, pagesize=landscape(A4))
     width, height = landscape(A4)
@@ -1110,3 +1011,193 @@ def historial_entregas_pdf(request):
     p.showPage()
     p.save()
     return resp
+
+
+# ================================================================
+# CU27 – Generar reportes de ventas (dispatcher ?export=)
+# ================================================================
+# --- CU27 helpers (REEMPLAZA ESTAS DOS FUNCIONES) ---
+
+def _ventas_build_where(q: str | None, d1: str | None, d2: str | None) -> tuple[str, list]:
+    where = ["1=1"]
+    params: list = []
+
+    # usa fecha_emision de la factura; si no hubiera, cae a la del pedido
+    fecha_expr   = "COALESCE(f.fecha, p.created_at)"
+    cliente_expr = "COALESCE(NULLIF(TRIM(c.nombre), ''), u.email)"
+    sabor_expr   = "COALESCE(NULLIF(TRIM(s.nombre), ''), '—')"
+
+    if q:
+        where.append(f"({cliente_expr} LIKE CONCAT('%%', %s, '%%') OR {sabor_expr} LIKE CONCAT('%%', %s, '%%'))")
+        params.extend([q, q])
+
+    if d1:
+        where.append(f"DATE({fecha_expr}) >= %s")
+        params.append(d1)
+    if d2:
+        where.append(f"DATE({fecha_expr}) <= %s")
+        params.append(d2)
+
+    return " AND ".join(where), params
+
+
+from django.db import connection
+
+def _fetch_ventas_agregado(group: str, q: str | None, d1: str | None, d2: str | None):
+    """
+    Agrupa ventas por día/cliente/sabor/producto usando tu esquema real:
+      - fecha de la factura: factura.fecha
+      - sabores vía detalle_pedido -> sabor
+      - producto vía detalle_pedido -> producto
+    Retorna (data, total_general, ventas_total)
+    """
+    # ✨ Campos legibles
+    fecha_factura   = "f.fecha"  # <- existe en tu tabla factura
+    cliente_expr    = "COALESCE(NULLIF(TRIM(c.nombre), ''), u.email)"
+    sabor_expr      = "COALESCE(NULLIF(TRIM(s.nombre), ''), '—')"
+    producto_expr   = "COALESCE(NULLIF(TRIM(pr.nombre), ''), '—')"
+
+    # Normalizamos parámetro
+    g = (group or "dia").lower()
+
+    if g == "cliente":
+        etiqueta = cliente_expr
+        order_by = "total DESC"
+    elif g == "sabor":
+        etiqueta = sabor_expr
+        order_by = "total DESC"
+    elif g == "producto":
+        etiqueta = producto_expr
+        order_by = "total DESC"
+    else:
+        # por día (desde fecha de la factura)
+        etiqueta = f"DATE_FORMAT({fecha_factura}, '%%Y-%%m-%%d')"
+        order_by = "etiqueta ASC"
+
+    # 🔎 Filtros (ajusta si tu helper se llama distinto)
+    where_parts = ["1=1"]
+    params = []
+
+    # rango de fechas sobre la fecha de la factura
+    if d1:
+        where_parts.append(f"{fecha_factura} >= %s")
+        params.append(d1)
+    if d2:
+        where_parts.append(f"{fecha_factura} < DATE_ADD(%s, INTERVAL 1 DAY)")
+        params.append(d2)
+
+    # búsqueda libre (cliente/sabor/producto)
+    if q:
+        where_parts.append(f"""(
+            {cliente_expr} LIKE %s OR
+            {sabor_expr}   LIKE %s OR
+            {producto_expr} LIKE %s
+        )""")
+        like = f"%{q}%"
+        params += [like, like, like]
+
+    where = " AND ".join(where_parts)
+
+    # 🧩 Joins usando tu modelo de datos
+    sql = f"""
+        SELECT
+            {etiqueta} AS etiqueta,
+            COUNT(DISTINCT p.id) AS ventas,
+            SUM(p.total) AS total
+        FROM factura f
+        JOIN pedido   p  ON p.id = f.pedido_id
+        LEFT JOIN cliente  c  ON c.id = p.cliente_id
+        LEFT JOIN usuario  u  ON u.id = c.usuario_id
+
+        -- Detalle para llegar a sabor y producto
+        LEFT JOIN detalle_pedido dp ON dp.pedido_id = p.id
+        LEFT JOIN sabor          s  ON s.id = dp.sabor_id
+        LEFT JOIN producto       pr ON pr.id = dp.producto_id
+
+        WHERE {where}
+        GROUP BY etiqueta
+        ORDER BY {order_by}
+        LIMIT 2000
+    """
+
+    with connection.cursor() as cur:
+        cur.execute(sql, params)
+        cols = [c[0] for c in cur.description]
+        data = [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    total_general = sum((r["total"] or 0) for r in data)
+    ventas_total  = sum((r["ventas"] or 0) for r in data)
+    return data, total_general, ventas_total
+
+
+# Vistas internas de CU27
+def _ventas_html_ctx(request):
+    group = request.GET.get("group", "dia")
+    q     = (request.GET.get("q") or "").strip() or None
+    d1    = request.GET.get("d1") or None
+    d2    = request.GET.get("d2") or None
+    data, total_general, ventas_total = _fetch_ventas_agregado(group, q, d1, d2)
+    return {
+        "hoy": now(),
+        "rows": data,
+        "group": group,
+        "q": q or "",
+        "d1": d1 or "",
+        "d2": d2 or "",
+        "total_general": total_general,
+        "ventas_total": ventas_total,
+    }
+
+
+def ventas_reportes(request):
+    ctx = _ventas_html_ctx(request)
+    return render(request, "accounts/ventas_reportes.html", ctx)
+
+
+def ventas_reportes_html(request):
+    ctx = _ventas_html_ctx(request)
+    return render(request, "accounts/ventas_reportes_print.html", ctx)
+
+
+def ventas_reportes_csv(request):
+    group = request.GET.get("group", "dia")
+    q     = (request.GET.get("q") or "").strip() or None
+    d1    = request.GET.get("d1") or None
+    d2    = request.GET.get("d2") or None
+
+    data, total_general, ventas_total = _fetch_ventas_agregado(group, q, d1, d2)
+
+    lines = ["etiqueta,ventas,total"]
+    for r in data:
+        etiqueta = (r["etiqueta"] or "").replace(",", " ")
+        lines.append(f"{etiqueta},{r['ventas']},{r['total'] or 0}")
+    lines.append(f"TOTAL,{ventas_total},{total_general}")
+
+    resp = HttpResponse("\n".join(lines), content_type="text/csv; charset=utf-8")
+    resp["Content-Disposition"] = 'attachment; filename=\"ventas_reportes.csv\"'
+    return resp
+
+
+def ventas_reportes_pdf(request):
+    # Si luego usas un generador de PDF, conviertes el HTML de impresión.
+    resp = ventas_reportes_html(request)
+    resp["Content-Disposition"] = 'attachment; filename=\"ventas_reportes.html\"'
+    return resp
+
+
+# Dispatcher pedido por urls.py
+@login_required
+@requiere_permiso("PEDIDO_READ")
+def reporte_ventas(request):
+    """
+    /reportes/ventas/?group=dia|cliente|producto|sabor&d1=YYYY-MM-DD&d2=YYYY-MM-DD&q=...
+    &export=csv|html|pdf
+    """
+    export = (request.GET.get("export") or "").lower()
+    if export == "csv":
+        return ventas_reportes_csv(request)
+    if export == "html":
+        return ventas_reportes_html(request)
+    if export == "pdf":
+        return ventas_reportes_pdf(request)
+    return ventas_reportes(request)
