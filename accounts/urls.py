@@ -56,6 +56,9 @@ from .views_reportes import (
     ventas_reportes_pdf,
 )
 
+# ---------- Recetas (CU22) ----------
+from .views_recetas import recetas_list, receta_edit
+
 
 # ---------- Web ----------
 urlpatterns = [
@@ -116,6 +119,12 @@ urlpatterns = [
     path("facturas/", views_facturas.factura_list, name="factura_list"),
     path("pedidos/<int:pedido_id>/factura/emitir/", views_facturas.factura_emitir, name="factura_emitir"),
     path("pedidos/<int:pedido_id>/factura/", views_facturas.factura_detalle, name="factura_detalle"),
+
+    # Recetas (CU22)
+    path("recetas/", recetas_list, name="recetas_list"),
+    path("recetas/<int:producto_id>/", receta_edit, name="receta_edit"),
+
+
 ]
 
 # ---------- Envíos (CORRECCIÓN DEL ERROR) ----------

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-3">
+  <h3 class="mb-3">Recetas por producto</h3>
+  <div class="table-responsive">
+    <table class="table table-striped align-middle">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>Items de receta</th>
+          <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in productos %}
+        <tr>
+          <td>{{ p.nombre }}</td>
+          <td>{{ p.items }}</td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-primary" href="{% url 'receta_edit' p.id %}">Editar receta</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3">No hay productos activos.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

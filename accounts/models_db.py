@@ -327,18 +327,6 @@ class PedidoDescuento(models.Model):
         unique_together = (('pedido', 'descuento'),)
 
 
-class Pago(models.Model):
-    pedido = models.OneToOneField(Pedido, models.DO_NOTHING)
-    metodo = models.CharField(max_length=13)  # EFECTIVO/QR/TRANSFERENCIA
-    monto = models.DecimalField(max_digits=12, decimal_places=2)
-    referencia = models.CharField(max_length=120, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'pago'
-
-
 class Envio(models.Model):
     pedido = models.OneToOneField(Pedido, models.DO_NOTHING)
     estado = models.CharField(max_length=9, blank=True, null=True)  # PENDIENTE/ENTREGADO
@@ -410,16 +398,6 @@ class Kardex(models.Model):
         db_table = 'kardex'
 
 
-class Receta(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    producto = models.ForeignKey(Producto, models.DO_NOTHING, db_column='producto_id')
-    insumo = models.ForeignKey(Insumo, models.DO_NOTHING, db_column='insumo_id')
-    cantidad = models.DecimalField(max_digits=12, decimal_places=3)
-
-    class Meta:
-        managed = False
-        db_table = 'receta'
-        unique_together = (('producto', 'insumo'),)
 
 
 # ============================
