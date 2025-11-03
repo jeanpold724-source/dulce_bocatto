@@ -31,10 +31,10 @@ def _total_pagado(pid: int):
 
 def _pedidos_listos():
     """
-    Precondición del CU24 (equivalente a 'listo_entrega'):
+    Precondición CU24:
     - pedido.estado IN ('CONFIRMADO')
     - suma(pago.monto) >= pedido.total
-    - sin registro en envio (aún no gestionado)
+    - sin registro en envio
     """
     with connection.cursor() as cur:
         cur.execute("""
@@ -69,17 +69,15 @@ def envio_list(request):
 def envio_crear_editar(request, pedido_id: int):
     """
     Paso 2 del flujo: seleccionar pedido y asignar repartidor.
-    Se permite también editar el repartidor si ya existe el envío.
+    También permite editar si ya existe el envío.
     """
     pedido = get_object_or_404(Pedido, pk=pedido_id)
     envio = _envio_by_pedido(pedido.id)
     pagado = _total_pagado(pedido.id)
 
-    # --- bandera robusta para plantillas ---
     metodo_envio = (pedido.metodo_envio or "").strip().upper()
     is_delivery = (metodo_envio == "DELIVERY")
 
-    # Bloquea si no cumple precondición
     if pagado < float(pedido.total or 0):
         messages.error(request, "El pedido no está listo: aún tiene saldo pendiente.")
         return redirect("envio_list")
@@ -121,8 +119,7 @@ def envio_crear_editar(request, pedido_id: int):
 @login_required
 def envio_marcar_entregado(request, pedido_id: int):
     """
-    Paso 3 del flujo: delivery realiza la entrega → marcar ENTREGADO.
-    Para RETIRO, se usa igual cuando el cliente recoge.
+    Paso 3: marcar ENTREGADO (delivery realizado o retiro en tienda).
     """
     pedido = get_object_or_404(Pedido, pk=pedido_id)
     envio = _envio_by_pedido(pedido.id)

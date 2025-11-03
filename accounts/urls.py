@@ -1,4 +1,4 @@
-# accounts/urls.py  (REEMPLAZA TODO ESTE ARCHIVO)
+# accounts/urls.py
 from django.urls import path
 from django.contrib.auth.views import LogoutView
 from rest_framework.routers import DefaultRouter
@@ -49,7 +49,12 @@ from .views_reportes import (
 )
 
 # CU27 – Generar reportes de ventas
-from .views_reportes import reporte_ventas
+from .views_reportes import (
+    ventas_reportes,
+    ventas_reportes_csv,
+    ventas_reportes_html,
+    ventas_reportes_pdf,
+)
 
 
 # ---------- Web ----------
@@ -113,54 +118,42 @@ urlpatterns = [
     path("pedidos/<int:pedido_id>/factura/", views_facturas.factura_detalle, name="factura_detalle"),
 ]
 
+# ---------- Envíos (CORRECCIÓN DEL ERROR) ----------
+urlpatterns += [
+    path(
+        "pedidos/<int:pedido_id>/envio/",
+        views_envios.envio_crear_editar,
+        name="envio_crear_editar",
+    ),
+]
+
 # ---------- Reportes ----------
-# CU18 – Historial de compras de clientes + exportaciones
 urlpatterns += [
     path("clientes/historial/", historial_clientes, name="historial_clientes"),
     path("clientes/historial/export.csv",  historial_clientes_csv,  name="historial_clientes_csv"),
     path("clientes/historial/export.pdf",  historial_clientes_pdf,  name="historial_clientes_pdf"),
     path("clientes/historial/export.html", historial_clientes_html, name="historial_clientes_html"),
-]
 
-# CU23 – Ventas diarias + exportaciones
-urlpatterns += [
     path("reportes/ventas-diarias/", ventas_diarias, name="ventas_diarias"),
     path("reportes/ventas-diarias/export.csv",  ventas_diarias_csv,  name="ventas_diarias_csv"),
     path("reportes/ventas-diarias/export.html", ventas_diarias_html, name="ventas_diarias_html"),
     path("reportes/ventas-diarias/export.pdf",  ventas_diarias_pdf,  name="ventas_diarias_pdf"),
-]
 
-# CU25 – Compras a proveedores + exportaciones
-urlpatterns += [
     path("reportes/proveedores/", historial_proveedores, name="historial_proveedores"),
     path("reportes/proveedores/export.csv",  historial_proveedores_csv,  name="historial_proveedores_csv"),
     path("reportes/proveedores/export.html", historial_proveedores_html, name="historial_proveedores_html"),
     path("reportes/proveedores/export.pdf",  historial_proveedores_pdf,  name="historial_proveedores_pdf"),
-]
 
-# CU26 – Historial de entregas + exportaciones
-urlpatterns += [
     path("reportes/entregas/", historial_entregas, name="historial_entregas"),
     path("reportes/entregas/export.csv",  historial_entregas_csv,  name="historial_entregas_csv"),
     path("reportes/entregas/export.html", historial_entregas_html, name="historial_entregas_html"),
     path("reportes/entregas/export.pdf",  historial_entregas_pdf,  name="historial_entregas_pdf"),
-]
 
-# ---- CU27 – Generar reportes de ventas ----
-from .views_reportes import (
-    ventas_reportes,
-    ventas_reportes_csv,
-    ventas_reportes_html,
-    ventas_reportes_pdf,
-)
-
-urlpatterns += [
     path("reportes/ventas/", ventas_reportes, name="ventas_reportes"),
     path("reportes/ventas/export.csv",  ventas_reportes_csv,  name="ventas_reportes_csv"),
     path("reportes/ventas/export.html", ventas_reportes_html, name="ventas_reportes_html"),
     path("reportes/ventas/export.pdf",  ventas_reportes_pdf,  name="ventas_reportes_pdf"),
 ]
-
 
 # ---------- API (CU04) ----------
 import accounts.api as accounts_api

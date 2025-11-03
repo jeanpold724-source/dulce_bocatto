@@ -1,45 +1,50 @@
-<h2>Gestionar envío · Pedido #{{ pedido.id }}</h2>
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Envío del pedido #{{ pedido.id }}</h2>
 
-<div class="mb-2">
-  <span class="badge bg-info">Método: {{ pedido.metodo_envio|title }}</span>
-  <span class="badge bg-secondary">Pagado: {{ pagado|floatformat:2 }} Bs.</span>
+  <div class="mb-3">
+    <strong>Método:</strong> {{ pedido.metodo_envio }} |
+    <strong>Total:</strong> Bs. {{ pedido.total }} |
+    <strong>Pagado:</strong> Bs. {{ pagado }}
+  </div>
+
   {% if is_delivery %}
-    <div class="small text-muted">Dirección: {{ pedido.direccion_entrega }}</div>
+    <div class="alert alert-warning py-2">
+      Este pedido es <strong>DELIVERY</strong>. Debes asignar repartidor.
+    </div>
+  {% else %}
+    <div class="alert alert-info py-2">
+      Este pedido es <strong>RETIRO</strong>. El repartidor es opcional.
+    </div>
   {% endif %}
-</div>
 
-<form method="post" class="card p-3">{% csrf_token %}
-  <div class="row g-3">
-    {% if is_delivery %}
+  <form method="post" class="mt-3">
+    {% csrf_token %}
+    <div class="row g-3">
       <div class="col-md-6">
         <label class="form-label">Nombre del repartidor</label>
-        <input class="form-control" name="nombre_repartidor" value="{{ envio.nombre_repartidor|default:'' }}" required>
+        <input class="form-control" name="nombre_repartidor"
+               value="{{ envio.nombre_repartidor|default_if_none:'' }}">
       </div>
       <div class="col-md-6">
         <label class="form-label">Teléfono del repartidor</label>
-        <input class="form-control" name="telefono_repartidor" value="{{ envio.telefono_repartidor|default:'' }}">
+        <input class="form-control" name="telefono_repartidor"
+               value="{{ envio.telefono_repartidor|default_if_none:'' }}">
       </div>
-    {% else %}
-      <div class="col-12">
-        <div class="alert alert-light border">
-          Este pedido es <b>RETIRO</b>. Puedes registrar un encargado (opcional) o pasar directo a <i>Entregado</i> cuando el cliente recoja.
-        </div>
-      </div>
-    {% endif %}
-  </div>
-  <div class="mt-3 d-flex gap-2">
-    <button class="btn btn-primary">Guardar</button>
-    <a class="btn btn-secondary" href="{% url 'envio_list' %}">Volver</a>
+    </div>
 
-    {% if envio %}
-      {% if envio.estado != 'ENTREGADO' %}
-        <a class="btn btn-success ms-auto" href="{% url 'envio_marcar_entregado' pedido.id %}"
-           onclick="return confirm('¿Confirmar entrega del pedido #{{ pedido.id }}?');">
+    <div class="mt-3 d-flex gap-2">
+      <button type="submit" class="btn btn-primary">Guardar</button>
+      <a class="btn btn-secondary" href="{% url 'pedido_detalle' pedido.id %}">Volver</a>
+
+      {% if envio %}
+        <a class="btn btn-success ms-auto"
+           href="{% url 'envio_marcar_entregado' pedido.id %}">
           Marcar ENTREGADO
         </a>
-      {% else %}
-        <span class="badge bg-success ms-auto">ENTREGADO</span>
       {% endif %}
-    {% endif %}
-  </div>
-</form>
+    </div>
+  </form>
+</div>
+{% endblock %}

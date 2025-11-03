@@ -783,7 +783,7 @@ def _fetch_historial_entregas(
 ):
     """
     Devuelve una fila por envío/entrega con joins a cliente.
-    Ajustado a columnas que tienes en BD.
+    Parche: la BD no tiene e.comentarios, por eso devolvemos '' AS comentario.
     """
     where = ["1=1"]
     params: list = []
@@ -824,7 +824,7 @@ def _fetch_historial_entregas(
             p.metodo_envio            AS metodo_envio,
             p.direccion_entrega       AS direccion,
             p.total                   AS total,
-            NULLIF(TRIM(e.comentarios), '') AS comentario
+            ''                        AS comentario
         FROM envio e
         JOIN pedido  p ON p.id = e.pedido_id
         LEFT JOIN cliente c ON c.id = p.cliente_id
