@@ -30,7 +30,7 @@
       <td>{{ item.sabor.nombre }}</td>
       <td>{{ item.cantidad }}</td>
       <td>
-        <ul class="mb-0">
+        <ul class="mb-0 ps-3">
           {% for c in checks %}
             <li class="{% if c.faltante > 0 %}text-danger{% else %}text-success{% endif %}">
               {{ c.insumo }} ({{ c.um }}):
