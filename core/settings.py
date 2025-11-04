@@ -49,21 +49,19 @@ TEMPLATES = [{
     ]},
 }]
 
-WSGI_APPLICATION = "core.wsgi.application"
-
 # --- DB (mueve credenciales a .env si quieres) ---
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": os.getenv("DB_NAME", "dulce_bocatto"),
-        "USER": os.getenv("DB_USER", "root"),
-        "PASSWORD": os.getenv("DB_PASSWORD", "NuevaClave123!"),
-        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
-        "PORT": os.getenv("DB_PORT", "3306"),
-        "OPTIONS": {
-            "charset": "utf8mb4",
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES', time_zone='-04:00';",
-        },
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'bv9ayegygncnd2trj7ae',  
+        'USER': 'uildoutw8oxppefm',     
+        'PASSWORD': 'cmCHfpJ1f5ZMl4oXnfOo',  
+        'HOST': 'bv9ayegygncnd2trj7ae-mysql.services.clever-cloud.com', 
+        'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            'ssl': {'ca': None}  
+        }
     }
 }
 
