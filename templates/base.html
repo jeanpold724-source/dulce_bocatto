@@ -1,4 +1,7 @@
+{% load roles %}
 {% load static %}
+{% load custom_tags %}
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -101,8 +104,8 @@
           <a class="btn btn-outline-light" href="{% url 'historial_proveedores' %}">Compras a Proveedores</a>
           <a class="btn btn-outline-light" href="{% url 'historial_entregas' %}">Historial de Entregas</a>
           <li class="nav-item"><a class="nav-link" href="{% url 'ventas_reportes' %}">Reportes de Ventas</a></li>
+          <a class="btn btn-outline-light" href="{% url 'pedidos_para_produccion' %}">Pedidos para Producción</a>
         {% endif %}
-
       </div>
     </div>
   </nav>

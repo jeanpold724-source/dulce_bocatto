@@ -124,6 +124,8 @@ urlpatterns = [
     path("recetas/", recetas_list, name="recetas_list"),
     path("recetas/<int:producto_id>/", receta_edit, name="receta_edit"),
 
+    
+
 
 ]
 
@@ -163,6 +165,17 @@ urlpatterns += [
     path("reportes/ventas/export.html", ventas_reportes_html, name="ventas_reportes_html"),
     path("reportes/ventas/export.pdf",  ventas_reportes_pdf,  name="ventas_reportes_pdf"),
 ]
+
+# CU32 - Producción de pedidos
+from .views_produccion import pedidos_para_produccion, gestionar_produccion, producir_item
+
+urlpatterns += [
+    path('produccion/pedidos/', pedidos_para_produccion, name='pedidos_para_produccion'),
+    path('produccion/pedido/<int:pedido_id>/', gestionar_produccion, name='gestionar_produccion'),
+    path('produccion/pedido/<int:pedido_id>/item/<int:producto_id>/<int:sabor_id>/producir/', producir_item, name='producir_item'),
+]
+
+
 
 # ---------- API (CU04) ----------
 import accounts.api as accounts_api

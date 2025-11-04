@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Pedidos para Producción</h3>
+<table class="table">
+  <thead><tr><th>#</th><th>Cliente</th><th>Estado</th><th>Entrega</th><th></th></tr></thead>
+  <tbody>
+  {% for p in pedidos %}
+    <tr>
+      <td>{{ p.id }}</td>
+      <td>{{ p.cliente_id }}</td>
+      <td>{{ p.estado }}</td>
+      <td>{{ p.fecha_entrega_programada|date:"d/m/Y H:i" }}</td>
+      <td><a class="btn btn-sm btn-primary" href="{% url 'gestionar_produccion' p.id %}">Gestionar</a></td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5">No hay pedidos confirmados.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Producción del Pedido #{{ pedido.id }} — Estado: {{ pedido.estado }}</h3>
+
+<form method="post" class="mb-3">
+  {% csrf_token %}
+  <button name="accion" value="en_produccion" class="btn btn-warning" {% if pedido.estado != "CONFIRMADO" %}disabled{% endif %}>
+    Pasar a EN_PRODUCCION
+  </button>
+  <button name="accion" value="listo_entrega" class="btn btn-success">
+    Marcar LISTO_ENTREGA (requiere stock OK)
+  </button>
+  <a class="btn btn-secondary" href="{% url 'pedidos_para_produccion' %}">Volver</a>
+</form>
+
+<table class="table">
+  <thead>
+    <tr><th>Producto</th><th>Sabor</th><th>Cantidad</th><th>Stock Insumos</th><th></th></tr>
+  </thead>
+  <tbody>
+  {% for item, ok, checks in verificados %}
+    <tr>
+      <td>{{ item.producto_id }}</td>
+      <td>{{ item.sabor_id }}</td>
+      <td>{{ item.cantidad }}</td>
+      <td>
+        <ul class="mb-0">
+          {% for insumo_id, nombre, req, stk, ok_i in checks %}
+            <li>
+              {{ nombre }}: requiere {{ req|floatformat:3 }}, stock {{ stk|floatformat:3 }}
+              {% if ok_i %}✔{% else %}❌{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </td>
+      <td>
+        <a class="btn btn-sm btn-outline-primary"
+           href="{% url 'producir_item' pedido.id item.producto_id item.sabor_id %}">
+           Descontar insumos de este ítem
+        </a>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

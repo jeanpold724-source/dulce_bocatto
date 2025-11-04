@@ -473,3 +473,20 @@ class Pago(models.Model):
 
     def __str__(self):
         return f"Pago #{self.id} – {self.metodo} – {self.monto}"
+
+
+
+
+# --- Detalle de Pedido ---
+class DetallePedido(models.Model):
+    pedido   = models.ForeignKey(Pedido,   models.DO_NOTHING, db_column='pedido_id')
+    producto = models.ForeignKey(Producto, models.DO_NOTHING, db_column='producto_id')
+    sabor    = models.ForeignKey(Sabor,    models.DO_NOTHING, db_column='sabor_id')
+    cantidad = models.IntegerField()
+    precio_unitario = models.DecimalField(max_digits=12, decimal_places=2)
+    sub_total = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        managed = False              # porque la tabla ya existe
+        db_table = 'detalle_pedido'
+        unique_together = (('pedido', 'producto', 'sabor'),)  # ✅

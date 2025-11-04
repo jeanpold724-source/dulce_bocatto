@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="fw-bold mb-4">Reporte de Ventas</h2>
+
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-md-3">
+            <select name="tipo" class="form-select">
+                <option value="dia" {% if tipo == 'dia' %}selected{% endif %}>Por día</option>
+                <option value="producto" {% if tipo == 'producto' %}selected{% endif %}>Por producto</option>
+                <option value="sabor" {% if tipo == 'sabor' %}selected{% endif %}>Por sabor</option>
+                <option value="cliente" {% if tipo == 'cliente' %}selected{% endif %}>Por cliente</option>
+            </select>
+        </div>
+        <div class="col-md-3"><input type="date" name="d1" value="{{ d1 }}" class="form-control"></div>
+        <div class="col-md-3"><input type="date" name="d2" value="{{ d2 }}" class="form-control"></div>
+        <div class="col-md-3"><button class="btn btn-pink w-100">Filtrar</button></div>
+    </form>
+
+    {% if msg %}
+    <div class="alert alert-warning">{{ msg }}</div>
+    {% endif %}
+
+    {% if rows %}
+    <table class="table table-bordered table-striped align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>{{ tipo|title }}</th>
+                <th>Pedidos</th>
+                <th>Cantidad total</th>
+                <th>Total (Bs.)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td>{{ r.agrupador }}</td>
+                <td>{{ r.pedidos }}</td>
+                <td>{{ r.cantidad_total }}</td>
+                <td>{{ r.total|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="fw-bold">
+                <td>Total</td>
+                <td>{{ total_pedidos }}</td>
+                <td></td>
+                <td>{{ total_general|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="d-flex gap-2">
+        <a href="?tipo={{ tipo }}&d1={{ d1 }}&d2={{ d2 }}&export=csv" class="btn btn-outline-secondary">Exportar CSV</a>
+        <a href="?tipo={{ tipo }}&d1={{ d1 }}&d2={{ d2 }}&export=html" class="btn btn-outline-secondary">Exportar HTML</a>
+        <a href="?tipo={{ tipo }}&d1={{ d1 }}&d2={{ d2 }}&export=pdf" class="btn btn-outline-secondary">Exportar PDF</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
