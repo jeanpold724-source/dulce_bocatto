@@ -15,6 +15,21 @@ DEBUG = os.getenv("DEBUG", "on").lower() in ("1", "true", "on", "yes")
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 CSRF_TRUSTED_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000"]
 
+ALLOWED_HOSTS = [
+    'dulce-bocatto.onrender.com',
+    'localhost',
+    '127.0.0.1',
+    '.onrender.com',  # Esto permite cualquier subdominio de Render
+]
+
+# Configuración CRITICA para CSRF
+CSRF_TRUSTED_ORIGINS = [
+    'https://dulce-bocatto.onrender.com',
+    'https://dulce-bocatto-1.onrender.com',
+    'https://dulce-bocatto-2.onrender.com',
+    'https://*.onrender.com',
+]
+
 # Apps
 INSTALLED_APPS = [
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
@@ -83,6 +98,8 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # ← NUEVA línea
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Auth redirects
@@ -104,3 +121,10 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 # Moneda & dominio
 CURRENCY = os.getenv("CURRENCY", "BOB")
 SITE_URL = os.getenv("SITE_URL", "http://localhost:8000")
+
+# final del archivo:
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
