@@ -15,20 +15,29 @@
 
 <table class="table">
   <thead>
-    <tr><th>Producto</th><th>Sabor</th><th>Cantidad</th><th>Stock Insumos</th><th></th></tr>
+    <tr>
+      <th>Producto</th>
+      <th>Sabor</th>
+      <th>Cantidad</th>
+      <th>Stock Insumos</th>
+      <th></th>
+    </tr>
   </thead>
   <tbody>
-  {% for item, ok, checks in verificados %}
+    {% for item, ok, checks in verificados %}
     <tr>
-      <td>{{ item.producto_id }}</td>
-      <td>{{ item.sabor_id }}</td>
+      <td>{{ item.producto.nombre }}</td>
+      <td>{{ item.sabor.nombre }}</td>
       <td>{{ item.cantidad }}</td>
       <td>
         <ul class="mb-0">
-          {% for insumo_id, nombre, req, stk, ok_i in checks %}
-            <li>
-              {{ nombre }}: requiere {{ req|floatformat:3 }}, stock {{ stk|floatformat:3 }}
-              {% if ok_i %}✔{% else %}❌{% endif %}
+          {% for c in checks %}
+            <li class="{% if c.faltante > 0 %}text-danger{% else %}text-success{% endif %}">
+              {{ c.insumo }} ({{ c.um }}):
+              requiere {{ c.necesario|floatformat:3 }},
+              stock {{ c.stock_kardex|default:c.stock_db|floatformat:3 }},
+              faltante {{ c.faltante|floatformat:3 }}
+              {% if c.faltante <= 0 %}✔{% else %}❌{% endif %}
             </li>
           {% endfor %}
         </ul>
@@ -40,7 +49,7 @@
         </a>
       </td>
     </tr>
-  {% endfor %}
+    {% endfor %}
   </tbody>
 </table>
 {% endblock %}

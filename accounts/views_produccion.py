@@ -9,35 +9,52 @@ from .models_recetas import Receta
 
 
 # Util: verificar stock de insumos para un producto
-def _insumos_necesarios(producto_id, cantidad):
+from decimal import Decimal
+from django.db import connection
+
+def _insumos_necesarios(producto_id: int, cantidad_producto: int):
     """
-    Devuelve lista de (insumo_id, nombre, requerido, stock_actual, ok_bool)
-    requerido = sum(receta.cantidad) * cantidad
-    stock_actual = sum(kardex) (entradas - salidas)
+    Devuelve los insumos requeridos para producir `cantidad_producto` unidades del producto,
+    junto con stock por kardex y faltante.
+    Requiere tablas: receta(producto_id, insumo_id, cantidad), insumo, kardex.
     """
     with connection.cursor() as cur:
-        # cantidades por receta (ya están en unidades base)
         cur.execute("""
-            SELECT r.insumo_id, i.nombre, SUM(r.cantidad) AS por_unidad
+            SELECT
+                r.insumo_id                                AS insumo_id,
+                i.nombre                                   AS insumo,
+                i.unidad_medida                            AS um,
+                i.cantidad_disponible                      AS stock_db,
+                -- Stock por movimientos: entradas - salidas ± ajustes
+                COALESCE(SUM(
+                    CASE
+                        WHEN k.tipo = 'ENTRADA' THEN k.cantidad
+                        WHEN k.tipo = 'SALIDA'  THEN -k.cantidad
+                        WHEN k.tipo = 'AJUSTE'  THEN k.cantidad
+                        ELSE 0
+                    END
+                ), 0)                                       AS stock_kardex,
+                (r.cantidad * %s)                          AS necesario
             FROM receta r
-            JOIN insumo i ON i.id = r.insumo_id
+            JOIN insumo i   ON i.id = r.insumo_id
+            LEFT JOIN kardex k ON k.insumo_id = r.insumo_id
             WHERE r.producto_id = %s
-            GROUP BY r.insumo_id, i.nombre
-        """, [producto_id])
-        filas = cur.fetchall()
+            GROUP BY r.insumo_id, i.nombre, i.unidad_medida, i.cantidad_disponible, r.cantidad
+            ORDER BY i.nombre
+        """, [cantidad_producto, producto_id])
 
-    resultados = []
-    for insumo_id, nombre, por_unidad in filas:
-        requerido = (por_unidad or 0) * cantidad
-        # stock de kardex
-        with connection.cursor() as cur:
-            cur.execute("""
-                SELECT COALESCE(SUM(entrada - salida), 0)
-                FROM kardex WHERE insumo_id = %s
-            """, [insumo_id])
-            stock = cur.fetchone()[0] or 0
-        resultados.append((insumo_id, nombre, float(requerido), float(stock), stock >= requerido))
-    return resultados
+        cols = [c[0] for c in cur.description]
+        rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+
+    # Calcula faltante (usa el mejor stock disponible)
+    for r in rows:
+        stock_ref = r["stock_kardex"] if r["stock_kardex"] is not None else 0
+        if not stock_ref:  # si kardex aún no tiene movimientos, usa el stock_db
+            stock_ref = r["stock_db"] or 0
+        r["faltante"] = max(Decimal(r["necesario"]) - Decimal(stock_ref), Decimal("0"))
+
+    return rows
+
 
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
@@ -53,7 +70,7 @@ def pedidos_para_produccion(request):
     )
     return render(request, 'produccion/pedidos_para_produccion.html', {'pedidos': pedidos})
 
-
+from decimal import Decimal
 @login_required
 def gestionar_produccion(request, pedido_id: int):
     """
@@ -70,7 +87,7 @@ def gestionar_produccion(request, pedido_id: int):
     verificados = []
     for it in items:
         checks = _insumos_necesarios(it.producto_id, it.cantidad)
-        ok = all(c[-1] for c in checks)  # todos con stock suficiente
+        ok = all(Decimal(ch.get("faltante", 0)) <= 0 for ch in checks)
         verificados.append((it, ok, checks))
 
     # Acciones de estado

@@ -293,12 +293,35 @@ class Descuento(models.Model):
 
     def __str__(self):
         return f"{self.nombre} ({self.tipo})"
+    
+
+# (arriba del modelo Pedido)
+from django.db import models
+
+class EstadoPedido(models.TextChoices):
+    PENDIENTE      = 'PENDIENTE', 'Pendiente'
+    CONFIRMADO     = 'CONFIRMADO', 'Confirmado'
+    EN_PRODUCCION  = 'EN_PRODUCCION', 'En producción'
+    LISTO_ENTREGA  = 'LISTO_ENTREGA', 'Listo para entrega'
+    ENTREGADO      = 'ENTREGADO', 'Entregado'
+    CANCELADO      = 'CANCELADO', 'Cancelado'
 
 
+
+# Reemplaza tu modelo Pedido actual por este (o ajusta solo el field estado)
 class Pedido(models.Model):
     id = models.AutoField(primary_key=True)
     cliente = models.ForeignKey(Cliente, models.DO_NOTHING, db_column='cliente_id')
-    estado = models.CharField(max_length=10, blank=True, null=True)  # PENDIENTE/CONFIRMADO/ENTREGADO/CANCELADO
+
+    # ✅ sube max_length y agrega choices
+    estado = models.CharField(
+        max_length=20,                      # antes tenías 10
+        choices=EstadoPedido.choices,       # valida contra los 6 estados
+        blank=True,
+        null=True,                          # déjalo True si en tu BD hay nulls
+        default=EstadoPedido.PENDIENTE,     # opcional pero recomendado
+    )
+
     metodo_envio = models.CharField(max_length=20)  # RETIRO/DELIVERY
     costo_envio = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
     direccion_entrega = models.CharField(max_length=200, blank=True, null=True)
@@ -479,14 +502,15 @@ class Pago(models.Model):
 
 # --- Detalle de Pedido ---
 class DetallePedido(models.Model):
+    id = models.BigAutoField(primary_key=True)  # <— necesario
     pedido   = models.ForeignKey(Pedido,   models.DO_NOTHING, db_column='pedido_id')
     producto = models.ForeignKey(Producto, models.DO_NOTHING, db_column='producto_id')
     sabor    = models.ForeignKey(Sabor,    models.DO_NOTHING, db_column='sabor_id')
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2)
-    sub_total = models.DecimalField(max_digits=12, decimal_places=2)
+    sub_total = models.DecimalField(max_digits=12, decimal_places=2)  # columna generada en MySQL
 
     class Meta:
-        managed = False              # porque la tabla ya existe
+        managed = False
         db_table = 'detalle_pedido'
-        unique_together = (('pedido', 'producto', 'sabor'),)  # ✅
+        unique_together = (('pedido','producto','sabor'),)  # mantiene la regla de unicidad
