@@ -758,17 +758,22 @@ def historial_proveedores_pdf(request):
 # CU26 – Historial de entregas (repartidor / fechas / estado)
 # ================================================================
 def _build_order_mysql_entregas(sort: str, direction: str) -> str:
+    """
+    ORDER BY seguro para MySQLdb: columnas calificadas (evita ambigüedad)
+    y % escapados como %% dentro de DATE_FORMAT.
+    """
     direction = (direction or "desc").lower()
     if direction not in ("asc", "desc"):
         direction = "desc"
 
     allowed = {
-        "fecha": "fecha",
-        "repartidor": "repartidor",
-        "cliente": "cliente",
-        "estado": "estado",
+        "fecha":      "DATE_FORMAT(p.created_at, '%%Y-%%m-%%d %%H:%%i')",
+        "repartidor": "COALESCE(NULLIF(TRIM(e.nombre_repartidor), ''), '—')",
+        "cliente":    "COALESCE(NULLIF(TRIM(c.nombre), ''), u.email)",
+        "estado":     "e.estado",
     }
-    col = allowed.get((sort or "").lower(), "fecha")
+    col = allowed.get((sort or "").lower(), allowed["fecha"])
+
     if direction == "asc":
         return f"CASE WHEN {col} IS NULL THEN 1 ELSE 0 END, {col} ASC"
     return f"{col} DESC"
@@ -783,48 +788,50 @@ def _fetch_historial_entregas(
 ):
     """
     Devuelve una fila por envío/entrega con joins a cliente.
-    Parche: la BD no tiene e.comentarios, por eso devolvemos '' AS comentario.
+    Nota: la BD no tiene e.comentarios, por eso devolvemos '' AS comentario.
     """
-    where = ["1=1"]
+    # --------- expresiones columna (reutilizables) ----------
+    fecha_expr       = "p.created_at"
+    repartidor_expr  = "COALESCE(NULLIF(TRIM(e.nombre_repartidor), ''), '—')"
+    cliente_expr     = "COALESCE(NULLIF(TRIM(c.nombre), ''), u.email)"
+
+    # --------- filtros dinámicos ----------
+    where_clauses: list[str] = ["1=1"]
     params: list = []
 
-    fecha_expr = "p.created_at"
-    repartidor_expr = "COALESCE(NULLIF(TRIM(e.nombre_repartidor), ''), '—')"
-    cliente_expr    = "COALESCE(NULLIF(TRIM(c.nombre), ''), u.email)"
-
     if q:
-        where.append(f"""(
+        where_clauses.append(f"""(
             {repartidor_expr} LIKE CONCAT('%%', %s, '%%')
          OR {cliente_expr}    LIKE CONCAT('%%', %s, '%%')
         )""")
         params.extend([q, q])
 
     if estado:
-        where.append("e.estado = %s")
+        where_clauses.append("e.estado = %s")
         params.append(estado)
 
     if d1:
-        where.append(f"DATE({fecha_expr}) >= %s")
+        where_clauses.append(f"DATE({fecha_expr}) >= %s")
         params.append(d1)
     if d2:
-        where.append(f"DATE({fecha_expr}) <= %s")
+        where_clauses.append(f"DATE({fecha_expr}) <= %s")
         params.append(d2)
 
-    where_sql = " AND ".join(where)
-    order_sql = order_sql or "fecha DESC"
+    where_sql = " AND ".join(where_clauses)
+    order_sql = order_sql or "DATE_FORMAT(p.created_at, '%%Y-%%m-%%d %%H:%%i') DESC"
 
     sql = f"""
         SELECT
-            e.id                      AS envio_id,
-            p.id                      AS pedido_id,
+            e.id                                        AS envio_id,
+            p.id                                        AS pedido_id,
             DATE_FORMAT({fecha_expr}, '%%Y-%%m-%%d %%H:%%i') AS fecha,
-            {repartidor_expr}         AS repartidor,
-            {cliente_expr}            AS cliente,
-            e.estado                  AS estado,
-            p.metodo_envio            AS metodo_envio,
-            p.direccion_entrega       AS direccion,
-            p.total                   AS total,
-            ''                        AS comentario
+            {repartidor_expr}                           AS repartidor,
+            {cliente_expr}                              AS cliente,
+            e.estado                                    AS estado,
+            p.metodo_envio                              AS metodo_envio,
+            p.direccion_entrega                         AS direccion,
+            p.total                                     AS total,
+            ''                                          AS comentario
         FROM envio e
         JOIN pedido  p ON p.id = e.pedido_id
         LEFT JOIN cliente c ON c.id = p.cliente_id
@@ -834,6 +841,7 @@ def _fetch_historial_entregas(
         LIMIT 1000
     """
 
+    from django.db import connection
     with connection.cursor() as cur:
         cur.execute(sql, params)
         cols = [c[0] for c in cur.description]
@@ -843,15 +851,14 @@ def _fetch_historial_entregas(
 @login_required
 @requiere_permiso("PEDIDO_READ")  # o ENVIO_READ si lo tienes
 def historial_entregas(request):
-    q  = (request.GET.get("q") or "").strip() or None
-    st = (request.GET.get("estado") or "").strip() or None
-    d1 = (request.GET.get("d1") or "").strip() or None
-    d2 = (request.GET.get("d2") or "").strip() or None
-
+    q   = (request.GET.get("q") or "").strip() or None
+    st  = (request.GET.get("estado") or "").strip() or None
+    d1  = (request.GET.get("d1") or "").strip() or None
+    d2  = (request.GET.get("d2") or "").strip() or None
     sort = request.GET.get("sort", "fecha")
     direction = request.GET.get("dir", "desc")
-    order_sql = _build_order_mysql_entregas(sort, direction)
 
+    order_sql = _build_order_mysql_entregas(sort, direction)
     rows = _fetch_historial_entregas(q, st, d1, d2, order_sql)
 
     total_envios = len(rows)
@@ -866,7 +873,8 @@ def historial_entregas(request):
         "estado": st or "",
         "d1": d1 or "",
         "d2": d2 or "",
-        "sort": sort, "dir": direction,
+        "sort": sort,
+        "dir": direction,
         "next_dir_fecha": _next_dir("fecha"),
         "next_dir_rep": _next_dir("repartidor"),
         "next_dir_cli": _next_dir("cliente"),
@@ -875,6 +883,7 @@ def historial_entregas(request):
         "total_entregados": total_entregados,
         "ESTADOS": ["PENDIENTE", "EN_CAMINO", "ENTREGADO", "CANCELADO"],
     })
+
 
 
 # ----------------- Exportaciones CU26 -----------------
@@ -1011,7 +1020,6 @@ def historial_entregas_pdf(request):
     p.showPage()
     p.save()
     return resp
-
 
 # ================================================================
 # CU27 – Generar reportes de ventas (dispatcher ?export=)
